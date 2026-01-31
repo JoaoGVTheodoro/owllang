@@ -1,0 +1,59 @@
+// ============================================================================
+// Pattern Matching with Option - OwlLang Example
+// ============================================================================
+// This example demonstrates pattern matching on Option[T] types.
+// The match expression provides a type-safe way to handle optional values.
+
+// Helper function to demonstrate match
+fn unwrap_or(opt: Option[Int], default: Int) -> Int {
+    return match opt {
+        Some(value) => value,
+        None => default,
+    }
+}
+
+// Double the value if present, otherwise return 0
+fn double_or_zero(opt: Option[Int]) -> Int {
+    return match opt {
+        Some(n) => n * 2,
+        None => 0,
+    }
+}
+
+// Match can be used as an expression in assignments
+fn describe_option(opt: Option[String]) -> String {
+    let description = match opt {
+        Some(s) => s,
+        None => "nothing",
+    }
+    return description
+}
+
+// Match with more complex expressions in arms
+fn calculate(opt: Option[Int]) -> Int {
+    return match opt {
+        Some(x) => x + x + 10,
+        None => -1,
+    }
+}
+
+// Usage demonstration
+fn main() {
+    // Using match with Some
+    let value = Some(42)
+    let result = unwrap_or(value, 0)
+    print(result)  // 42
+    
+    // Using match with None
+    let empty: Option[Int] = None
+    let default_result = unwrap_or(empty, 99)
+    print(default_result)  // 99
+    
+    // Double or zero
+    print(double_or_zero(Some(21)))  // 42
+    print(double_or_zero(None))      // 0
+    
+    // With string option
+    print(describe_option(Some("hello")))  // "hello"
+    print(describe_option(None))           // "nothing"
+}

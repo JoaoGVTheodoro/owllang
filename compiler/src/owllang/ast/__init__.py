@@ -20,6 +20,14 @@ from owllang.ast.nodes import (
     Call,
     FieldAccess,
     TryExpr,
+    # Pattern Matching
+    Pattern,
+    SomePattern,
+    NonePattern,
+    OkPattern,
+    ErrPattern,
+    MatchArm,
+    MatchExpr,
     # Type Annotations
     TypeAnnotation,
     # Statements
@@ -52,6 +60,14 @@ __all__ = [
     "Call",
     "FieldAccess",
     "TryExpr",
+    # Pattern Matching
+    "Pattern",
+    "SomePattern",
+    "NonePattern",
+    "OkPattern",
+    "ErrPattern",
+    "MatchArm",
+    "MatchExpr",
     # Type Annotations
     "TypeAnnotation",
     # Statements

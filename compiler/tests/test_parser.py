@@ -26,6 +26,13 @@ from owllang.ast import (
     FieldAccess,
     TryExpr,
     TypeAnnotation,
+    # Pattern Matching
+    MatchExpr,
+    MatchArm,
+    SomePattern,
+    NonePattern,
+    OkPattern,
+    ErrPattern,
 )
 from owllang.parser import Parser, ParseError
 
@@ -599,3 +606,151 @@ class TestParameterizedTypes:
             TypeAnnotation("String")
         ])
         assert nested.to_string() == "Result[Option[Int], String]"
+
+
+# =============================================================================
+# MATCH EXPRESSION TESTS
+# =============================================================================
+
+class TestMatchExpressionParsing:
+    """Test parsing of match expressions."""
+    
+    def test_match_option_some_none(self) -> None:
+        """Parse match expression for Option with Some and None."""
+        source = """
+let x = match opt {
+    Some(v) => v,
+    None => 0,
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStmt)
+        assert isinstance(stmt.value, MatchExpr)
+        
+        match_expr = stmt.value
+        assert isinstance(match_expr.subject, Identifier)
+        assert match_expr.subject.name == "opt"
+        assert len(match_expr.arms) == 2
+        
+        # First arm: Some(v) => v
+        arm1 = match_expr.arms[0]
+        assert isinstance(arm1.pattern, SomePattern)
+        assert arm1.pattern.binding == "v"
+        assert isinstance(arm1.body, Identifier)
+        
+        # Second arm: None => 0
+        arm2 = match_expr.arms[1]
+        assert isinstance(arm2.pattern, NonePattern)
+        assert isinstance(arm2.body, IntLiteral)
+    
+    def test_match_result_ok_err(self) -> None:
+        """Parse match expression for Result with Ok and Err."""
+        source = """
+let x = match res {
+    Ok(v) => v,
+    Err(e) => 0,
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt.value, MatchExpr)
+        
+        match_expr = stmt.value
+        assert len(match_expr.arms) == 2
+        
+        # First arm: Ok(v) => v
+        arm1 = match_expr.arms[0]
+        assert isinstance(arm1.pattern, OkPattern)
+        assert arm1.pattern.binding == "v"
+        
+        # Second arm: Err(e) => 0
+        arm2 = match_expr.arms[1]
+        assert isinstance(arm2.pattern, ErrPattern)
+        assert arm2.pattern.binding == "e"
+    
+    def test_match_with_complex_body(self) -> None:
+        """Parse match with complex expressions in body."""
+        source = """
+let x = match opt {
+    Some(v) => v * 2 + 1,
+    None => default_value(),
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        match_expr = program.statements[0].value
+        
+        # Some(v) => v * 2 + 1
+        arm1 = match_expr.arms[0]
+        assert isinstance(arm1.body, BinaryOp)
+        
+        # None => default_value()
+        arm2 = match_expr.arms[1]
+        assert isinstance(arm2.body, Call)
+    
+    def test_match_as_expression_in_return(self) -> None:
+        """Parse match as expression in return statement."""
+        source = """
+fn process(opt: Option[Int]) -> Int {
+    return match opt {
+        Some(v) => v,
+        None => 0,
+    }
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        ret_stmt = fn.body[0]
+        assert isinstance(ret_stmt, ReturnStmt)
+        assert isinstance(ret_stmt.value, MatchExpr)
+    
+    def test_match_single_arm(self) -> None:
+        """Parse match with single arm (will fail type check for exhaustivity)."""
+        source = """
+let x = match opt {
+    Some(v) => v,
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        match_expr = program.statements[0].value
+        assert isinstance(match_expr, MatchExpr)
+        assert len(match_expr.arms) == 1
+    
+    def test_match_without_trailing_comma(self) -> None:
+        """Parse match without trailing comma on last arm."""
+        source = """
+let x = match opt {
+    Some(v) => v,
+    None => 0
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        match_expr = program.statements[0].value
+        assert len(match_expr.arms) == 2
+    
+    def test_match_on_function_call(self) -> None:
+        """Parse match on result of function call."""
+        source = """
+let x = match get_option() {
+    Some(v) => v,
+    None => 0,
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        match_expr = program.statements[0].value
+        assert isinstance(match_expr.subject, Call)
+

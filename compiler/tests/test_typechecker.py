@@ -21,7 +21,9 @@ from owllang.ast import (
     IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
     Identifier, BinaryOp, UnaryOp, Call, TryExpr,
     LetStmt, ExprStmt, ReturnStmt, IfStmt,
-    FnDecl, Parameter, Program, TypeAnnotation
+    FnDecl, Parameter, Program, TypeAnnotation,
+    # Pattern Matching
+    MatchExpr, MatchArm, SomePattern, NonePattern, OkPattern, ErrPattern,
 )
 from owllang.typechecker import (
     TypeChecker, TypeError,
@@ -698,6 +700,162 @@ class TestImplicitReturn:
         checker = TypeChecker()
         errors = checker.check(program)
         assert len(errors) == 0
+    
+    def test_implicit_return_with_match_option(self) -> None:
+        """match expression as implicit return should work."""
+        # fn f(x: Option[Int]) -> Int {
+        #     match x { Some(v) => v, None => 0 }
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="f",
+                    params=[Parameter("x", T("Option[Int]"))],
+                    return_type=T("Int"),
+                    body=[
+                        ExprStmt(MatchExpr(
+                            subject=Identifier("x"),
+                            arms=[
+                                MatchArm(SomePattern("v"), Identifier("v")),
+                                MatchArm(NonePattern(), IntLiteral(0)),
+                            ]
+                        ))
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        errors = checker.check(program)
+        assert len(errors) == 0
+    
+    def test_implicit_return_with_match_result(self) -> None:
+        """match on Result as implicit return should work."""
+        # fn f(x: Result[Int, String]) -> Int {
+        #     match x { Ok(v) => v, Err(e) => 0 }
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="f",
+                    params=[Parameter("x", T("Result[Int, String]"))],
+                    return_type=T("Int"),
+                    body=[
+                        ExprStmt(MatchExpr(
+                            subject=Identifier("x"),
+                            arms=[
+                                MatchArm(OkPattern("v"), Identifier("v")),
+                                MatchArm(ErrPattern("e"), IntLiteral(0)),
+                            ]
+                        ))
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        errors = checker.check(program)
+        assert len(errors) == 0
+    
+    def test_implicit_return_with_if_else(self) -> None:
+        """if/else expression as implicit return should work."""
+        # fn f(x: Bool) -> Int {
+        #     if x { 1 } else { 0 }
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="f",
+                    params=[Parameter("x", T("Bool"))],
+                    return_type=T("Int"),
+                    body=[
+                        ExprStmt(IfStmt(
+                            condition=Identifier("x"),
+                            then_body=[ExprStmt(IntLiteral(1))],
+                            else_body=[ExprStmt(IntLiteral(0))],
+                        ))
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        errors = checker.check(program)
+        assert len(errors) == 0
+    
+    def test_if_without_else_not_exhaustive(self) -> None:
+        """if without else as return should error (not all paths return)."""
+        # fn bad(x: Bool) -> Int {
+        #     if x { 1 }
+        # } // ERROR: not all paths return
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="bad",
+                    params=[Parameter("x", T("Bool"))],
+                    return_type=T("Int"),
+                    body=[
+                        ExprStmt(IfStmt(
+                            condition=Identifier("x"),
+                            then_body=[ExprStmt(IntLiteral(1))],
+                            else_body=None,  # No else!
+                        ))
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        errors = checker.check(program)
+        assert len(errors) >= 1
+        # Should mention that not all paths return or missing else
+        assert any("path" in e.message.lower() or "else" in e.message.lower() or "return" in e.message.lower() for e in errors)
+    
+    def test_empty_body_function_with_return_type_error(self) -> None:
+        """Function with return type but empty body should error."""
+        # fn bad() -> Int { }  // ERROR: no return
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="bad",
+                    params=[],
+                    return_type=T("Int"),
+                    body=[]  # Empty body!
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        errors = checker.check(program)
+        assert len(errors) >= 1
+    
+    def test_let_as_last_statement_not_return(self) -> None:
+        """Let as last statement is not an expression return."""
+        # fn bad() -> Int {
+        #     let x = 42
+        # } // ERROR: let is not an expression
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="bad",
+                    params=[],
+                    return_type=T("Int"),
+                    body=[
+                        LetStmt(name="x", value=IntLiteral(42), type_annotation=None)
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        errors = checker.check(program)
+        assert len(errors) >= 1
 
 
 # =============================================================================
@@ -902,3 +1060,241 @@ class TestTypeAnnotationArity:
         assert isinstance(result, ResultType)
         assert isinstance(result.ok_type, OptionType)
         assert result.ok_type.inner == INT
+
+
+# =============================================================================
+# MATCH EXPRESSION TESTS
+# =============================================================================
+
+class TestMatchExpression:
+    """Test type checking of match expressions."""
+    
+    def test_match_option_returns_inner_type(self) -> None:
+        """match Option[Int] with Some(x)/None returns Int."""
+        checker = TypeChecker()
+        checker.env.define_var("opt", OptionType(INT))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("opt"),
+            arms=[
+                MatchArm(SomePattern("v"), Identifier("v")),
+                MatchArm(NonePattern(), IntLiteral(0)),
+            ]
+        )
+        
+        result = checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 0
+        assert result == INT
+    
+    def test_match_result_returns_ok_type(self) -> None:
+        """match Result[Int, String] with Ok(v)/Err(e) returns Int."""
+        checker = TypeChecker()
+        checker.env.define_var("res", ResultType(INT, STRING))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("res"),
+            arms=[
+                MatchArm(OkPattern("v"), Identifier("v")),
+                MatchArm(ErrPattern("e"), IntLiteral(0)),
+            ]
+        )
+        
+        result = checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 0
+        assert result == INT
+    
+    def test_match_some_binding_has_inner_type(self) -> None:
+        """Some(x) binding should have the Option's inner type."""
+        checker = TypeChecker()
+        checker.env.define_var("opt", OptionType(STRING))
+        
+        # match opt { Some(s) => s, None => "" }
+        match_expr = MatchExpr(
+            subject=Identifier("opt"),
+            arms=[
+                MatchArm(SomePattern("s"), Identifier("s")),
+                MatchArm(NonePattern(), StringLiteral("")),
+            ]
+        )
+        
+        result = checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 0
+        assert result == STRING
+    
+    def test_match_ok_binding_has_ok_type(self) -> None:
+        """Ok(v) binding should have Result's Ok type."""
+        checker = TypeChecker()
+        checker.env.define_var("res", ResultType(FLOAT, STRING))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("res"),
+            arms=[
+                MatchArm(OkPattern("v"), Identifier("v")),
+                MatchArm(ErrPattern("e"), FloatLiteral(0.0)),
+            ]
+        )
+        
+        result = checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 0
+        assert result == FLOAT
+    
+    def test_match_err_binding_has_err_type(self) -> None:
+        """Err(e) binding should have Result's Err type."""
+        checker = TypeChecker()
+        checker.env.define_var("res", ResultType(INT, STRING))
+        
+        # match res { Ok(v) => "", Err(e) => e }
+        match_expr = MatchExpr(
+            subject=Identifier("res"),
+            arms=[
+                MatchArm(OkPattern("v"), StringLiteral("")),
+                MatchArm(ErrPattern("e"), Identifier("e")),
+            ]
+        )
+        
+        result = checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 0
+        assert result == STRING
+    
+    def test_match_exhaustivity_option_missing_none(self) -> None:
+        """Missing None arm should error."""
+        checker = TypeChecker()
+        checker.env.define_var("opt", OptionType(INT))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("opt"),
+            arms=[
+                MatchArm(SomePattern("v"), Identifier("v")),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 1
+        assert "exhaustive" in checker.errors[0].message.lower() or "None" in checker.errors[0].message
+    
+    def test_match_exhaustivity_option_missing_some(self) -> None:
+        """Missing Some arm should error."""
+        checker = TypeChecker()
+        checker.env.define_var("opt", OptionType(INT))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("opt"),
+            arms=[
+                MatchArm(NonePattern(), IntLiteral(0)),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 1
+        assert "exhaustive" in checker.errors[0].message.lower() or "Some" in checker.errors[0].message
+    
+    def test_match_exhaustivity_result_missing_err(self) -> None:
+        """Missing Err arm should error."""
+        checker = TypeChecker()
+        checker.env.define_var("res", ResultType(INT, STRING))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("res"),
+            arms=[
+                MatchArm(OkPattern("v"), Identifier("v")),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 1
+        assert "exhaustive" in checker.errors[0].message.lower() or "Err" in checker.errors[0].message
+    
+    def test_match_exhaustivity_result_missing_ok(self) -> None:
+        """Missing Ok arm should error."""
+        checker = TypeChecker()
+        checker.env.define_var("res", ResultType(INT, STRING))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("res"),
+            arms=[
+                MatchArm(ErrPattern("e"), IntLiteral(0)),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 1
+        assert "exhaustive" in checker.errors[0].message.lower() or "Ok" in checker.errors[0].message
+    
+    def test_match_branch_type_mismatch(self) -> None:
+        """Branches with different types should error."""
+        checker = TypeChecker()
+        checker.env.define_var("opt", OptionType(INT))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("opt"),
+            arms=[
+                MatchArm(SomePattern("v"), Identifier("v")),  # Int
+                MatchArm(NonePattern(), StringLiteral("none")),  # String
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) == 1
+        assert "type" in checker.errors[0].message.lower()
+    
+    def test_match_on_non_option_non_result(self) -> None:
+        """match on Int should error (only Option/Result supported)."""
+        checker = TypeChecker()
+        checker.env.define_var("x", INT)
+        
+        match_expr = MatchExpr(
+            subject=Identifier("x"),
+            arms=[
+                MatchArm(SomePattern("v"), Identifier("v")),
+                MatchArm(NonePattern(), IntLiteral(0)),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) >= 1
+        assert "Option" in checker.errors[0].message or "Result" in checker.errors[0].message
+    
+    def test_match_option_with_result_patterns_error(self) -> None:
+        """Using Ok/Err patterns on Option should error."""
+        checker = TypeChecker()
+        checker.env.define_var("opt", OptionType(INT))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("opt"),
+            arms=[
+                MatchArm(OkPattern("v"), Identifier("v")),
+                MatchArm(ErrPattern("e"), IntLiteral(0)),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) >= 1
+    
+    def test_match_result_with_option_patterns_error(self) -> None:
+        """Using Some/None patterns on Result should error."""
+        checker = TypeChecker()
+        checker.env.define_var("res", ResultType(INT, STRING))
+        
+        match_expr = MatchExpr(
+            subject=Identifier("res"),
+            arms=[
+                MatchArm(SomePattern("v"), Identifier("v")),
+                MatchArm(NonePattern(), IntLiteral(0)),
+            ]
+        )
+        
+        checker._check_expr(match_expr)
+        
+        assert len(checker.errors) >= 1

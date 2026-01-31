@@ -51,6 +51,7 @@ class TokenType(Enum):
     RETURN = auto()
     TRUE = auto()
     FALSE = auto()
+    MATCH = auto()
 
     # Operators
     PLUS = auto()  # +
@@ -76,6 +77,7 @@ class TokenType(Enum):
     COMMA = auto()  # ,
     COLON = auto()  # :
     ARROW = auto()  # ->
+    FAT_ARROW = auto()  # =>
     DOT = auto()  # .
     QUESTION = auto()  # ?
 
@@ -202,6 +204,66 @@ class TryExpr(Expr):
     """
 
     operand: Expr
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class Pattern:
+    """Base class for match patterns."""
+    pass
+
+
+@dataclass
+class SomePattern(Pattern):
+    """Pattern: Some(binding)"""
+    binding: str
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class NonePattern(Pattern):
+    """Pattern: None"""
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class OkPattern(Pattern):
+    """Pattern: Ok(binding)"""
+    binding: str
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class ErrPattern(Pattern):
+    """Pattern: Err(binding)"""
+    binding: str
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class MatchArm:
+    """
+    A single arm in a match expression.
+    
+    pattern => body
+    """
+    pattern: Pattern
+    body: Expr
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class MatchExpr(Expr):
+    """
+    Match expression for pattern matching.
+    
+    match expr {
+        Some(x) => x,
+        None => 0,
+    }
+    """
+    subject: Expr
+    arms: list[MatchArm]
     span: Optional[Span] = field(default=None, compare=False)
 
 

@@ -501,3 +501,249 @@ fn add(a, b) {
         # Should NOT contain the runtime classes
         assert "class Ok:" not in result
         assert "class Err:" not in result
+
+
+class TestMatchTranspilation:
+    """Test transpilation of match expressions."""
+    
+    def test_match_option_generates_conditional(self) -> None:
+        """match Option generates conditional pattern."""
+        source = """
+fn process(opt: Option[Int]) -> Int {
+    return match opt {
+        Some(v) => v,
+        None => 0,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        # Should contain conditional expression pattern
+        assert "if " in result
+        assert "lambda" in result
+    
+    def test_match_result_generates_conditional(self) -> None:
+        """match Result generates conditional pattern."""
+        source = """
+fn process(res: Result[Int, String]) -> Int {
+    return match res {
+        Ok(v) => v,
+        Err(e) => 0,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        # Should contain conditional pattern
+        assert "if " in result
+        assert "isinstance" in result
+    
+    def test_match_option_executable(self) -> None:
+        """match Option should execute correctly."""
+        source = """
+fn unwrap_or(opt: Option[Int], default: Int) -> Int {
+    return match opt {
+        Some(v) => v,
+        None => default,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        # Create Some for testing (None is built-in Python)
+        class Some:
+            def __init__(self, value):
+                self.value = value
+        
+        assert namespace["unwrap_or"](Some(42), 0) == 42
+        assert namespace["unwrap_or"](None, 99) == 99
+    
+    def test_match_result_executable(self) -> None:
+        """match Result should execute correctly."""
+        source = """
+fn unwrap_or_else(res: Result[Int, String], default: Int) -> Int {
+    return match res {
+        Ok(v) => v,
+        Err(e) => default,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        # Add Ok and Err to namespace
+        class Ok:
+            def __init__(self, value):
+                self.value = value
+        
+        class Err:
+            def __init__(self, error):
+                self.error = error
+        
+        namespace: dict = {"Ok": Ok, "Err": Err}
+        exec(result, namespace)
+        
+        assert namespace["unwrap_or_else"](Ok(42), 0) == 42
+        assert namespace["unwrap_or_else"](Err("error"), 99) == 99
+    
+    def test_match_as_expression(self) -> None:
+        """match as expression in let statement."""
+        source = """
+fn process(opt: Option[Int]) -> Int {
+    let x = match opt {
+        Some(v) => v * 2,
+        None => 0,
+    }
+    return x
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        class Some:
+            def __init__(self, value):
+                self.value = value
+        
+        assert namespace["process"](Some(21)) == 42
+        assert namespace["process"](None) == 0
+    
+    def test_match_binding_used_in_expression(self) -> None:
+        """Pattern bindings should be usable in arm body."""
+        source = """
+fn double_or_zero(opt: Option[Int]) -> Int {
+    return match opt {
+        Some(n) => n + n,
+        None => 0,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        class Some:
+            def __init__(self, value):
+                self.value = value
+        
+        assert namespace["double_or_zero"](Some(5)) == 10
+        assert namespace["double_or_zero"](None) == 0
+
+
+# =============================================================================
+# IMPLICIT RETURN TRANSPILATION TESTS
+# =============================================================================
+
+class TestImplicitReturnTranspilation:
+    """Test implicit return code generation."""
+    
+    def test_implicit_return_simple_expression(self) -> None:
+        """Last expression should generate return statement."""
+        source = """
+fn add(a: Int, b: Int) -> Int {
+    a + b
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        assert namespace["add"](2, 3) == 5
+    
+    def test_implicit_return_match_option(self) -> None:
+        """match as last expression should return its value."""
+        source = """
+fn unwrap_or(opt: Option[Int], default: Int) -> Int {
+    match opt {
+        Some(v) => v,
+        None => default,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        class Some:
+            def __init__(self, value):
+                self.value = value
+        
+        assert namespace["unwrap_or"](Some(42), 0) == 42
+        assert namespace["unwrap_or"](None, 99) == 99
+    
+    def test_implicit_return_match_result(self) -> None:
+        """match on Result as last expression should return."""
+        source = """
+fn extract(res: Result[Int, String]) -> Int {
+    match res {
+        Ok(v) => v,
+        Err(e) => 0,
+    }
+}
+"""
+        result = compile_no_check(source)
+        
+        class Ok:
+            def __init__(self, value):
+                self.value = value
+        
+        class Err:
+            def __init__(self, error):
+                self.error = error
+        
+        namespace: dict = {"Ok": Ok, "Err": Err}
+        exec(result, namespace)
+        
+        assert namespace["extract"](Ok(42)) == 42
+        assert namespace["extract"](Err("fail")) == 0
+    
+    def test_implicit_return_if_else(self) -> None:
+        """if/else as last expression should return."""
+        source = """
+fn max(a: Int, b: Int) -> Int {
+    if a > b { a } else { b }
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        assert namespace["max"](5, 3) == 5
+        assert namespace["max"](2, 7) == 7
+    
+    def test_implicit_return_after_statements(self) -> None:
+        """Last expression after let statements should return."""
+        source = """
+fn compute(x: Int) -> Int {
+    let doubled = x * 2
+    let added = doubled + 10
+    added
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        assert namespace["compute"](5) == 20
+    
+    def test_implicit_return_literal(self) -> None:
+        """Literal as last expression should return."""
+        source = """
+fn always_42() -> Int {
+    42
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        assert namespace["always_42"]() == 42

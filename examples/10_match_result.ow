@@ -1,0 +1,72 @@
+// ============================================================================
+// Pattern Matching with Result - OwlLang Example
+// ============================================================================
+// This example demonstrates pattern matching on Result[T, E] types.
+// The match expression provides exhaustive handling of success and error cases.
+
+// Safely extract value or provide default
+fn unwrap_or_else(res: Result[Int, String], default: Int) -> Int {
+    return match res {
+        Ok(value) => value,
+        Err(e) => default,
+    }
+}
+
+// Convert Result to a descriptive string
+fn describe_result(res: Result[Int, String]) -> String {
+    return match res {
+        Ok(n) => "success",
+        Err(msg) => msg,
+    }
+}
+
+// Transform the Ok value, pass through error as default
+fn double_if_ok(res: Result[Int, String]) -> Int {
+    return match res {
+        Ok(n) => n * 2,
+        Err(e) => 0,
+    }
+}
+
+// Pattern matching works with any Result types
+fn handle_parse_result(res: Result[Int, String]) -> Int {
+    return match res {
+        Ok(parsed) => parsed + 1,
+        Err(error) => -1,
+    }
+}
+
+// Example error-returning function
+fn divide(a: Int, b: Int) -> Result[Int, String] {
+    if b == 0 {
+        return Err("division by zero")
+    }
+    return Ok(a / b)
+}
+
+// Main demonstration
+fn main() {
+    // Matching on Ok result
+    let success = Ok(42)
+    print(unwrap_or_else(success, 0))  // 42
+    print(describe_result(success))     // "success"
+    
+    // Matching on Err result
+    let failure = Err("something went wrong")
+    print(unwrap_or_else(failure, -1))  // -1
+    print(describe_result(failure))      // "something went wrong"
+    
+    // Real-world example with divide
+    let result1 = divide(10, 2)
+    print(double_if_ok(result1))  // 10 (5 * 2)
+    
+    let result2 = divide(10, 0)
+    print(double_if_ok(result2))  // 0 (error case)
+    
+    // Using match directly with function return
+    let final_value = match divide(100, 4) {
+        Ok(v) => v,
+        Err(e) => 0,
+    }
+    print(final_value)  // 25
+}

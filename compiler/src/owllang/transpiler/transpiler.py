@@ -10,6 +10,8 @@ from ..ast import (
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
     Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    # Pattern Matching
+    MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Statements
     Stmt, LetStmt, ExprStmt, ReturnStmt, IfStmt,
     # Declarations
@@ -164,7 +166,11 @@ class Transpiler:
     # =========================================================================
     
     def _transpile_fn(self, fn: FnDecl) -> str:
-        """Transpile function declaration."""
+        """Transpile function declaration.
+        
+        Handles implicit return: if the last statement is an expression,
+        it is treated as the return value.
+        """
         # Function signature
         params = ", ".join(p.name for p in fn.params)
         lines: list[str] = [f"def {fn.name}({params}):"]
@@ -175,10 +181,79 @@ class Transpiler:
         if not fn.body:
             lines.append(self._indent("pass"))
         else:
-            for stmt in fn.body:
+            # Transpile all statements except the last
+            for stmt in fn.body[:-1]:
                 lines.append(self._transpile_stmt(stmt))
+            
+            # Handle last statement specially for implicit return
+            last_stmt = fn.body[-1]
+            if isinstance(last_stmt, ExprStmt):
+                # Last expression becomes implicit return
+                expr_code = self._transpile_expr(last_stmt.expr)
+                lines.append(self._indent(f"return {expr_code}"))
+            elif isinstance(last_stmt, ReturnStmt):
+                # Explicit return, transpile normally
+                lines.append(self._transpile_stmt(last_stmt))
+            elif isinstance(last_stmt, IfStmt):
+                # if/else as last statement - treat as expression return
+                lines.append(self._transpile_if_as_return(last_stmt))
+            else:
+                # Other statements (let)
+                lines.append(self._transpile_stmt(last_stmt))
         
         self.indent_level -= 1
+        
+        return "\n".join(lines)
+    
+    def _transpile_if_as_return(self, stmt: IfStmt) -> str:
+        """Transpile if/else as a returning expression.
+        
+        Generates:
+            if condition:
+                return <last expr in then>
+            else:
+                return <last expr in else>
+        """
+        lines: list[str] = []
+        condition = self._transpile_expr(stmt.condition)
+        lines.append(self._indent(f"if {condition}:"))
+        
+        # Then branch
+        self.indent_level += 1
+        if stmt.then_body:
+            # All but last statement
+            for s in stmt.then_body[:-1]:
+                lines.append(self._transpile_stmt(s))
+            # Last statement becomes return
+            last_then = stmt.then_body[-1]
+            if isinstance(last_then, ExprStmt):
+                expr_code = self._transpile_expr(last_then.expr)
+                lines.append(self._indent(f"return {expr_code}"))
+            elif isinstance(last_then, IfStmt):
+                lines.append(self._transpile_if_as_return(last_then))
+            else:
+                lines.append(self._transpile_stmt(last_then))
+        else:
+            lines.append(self._indent("pass"))
+        self.indent_level -= 1
+        
+        # Else branch
+        if stmt.else_body:
+            lines.append(self._indent("else:"))
+            self.indent_level += 1
+            # All but last statement
+            for s in stmt.else_body[:-1]:
+                lines.append(self._transpile_stmt(s))
+            # Last statement becomes return
+            last_else = stmt.else_body[-1]
+            if isinstance(last_else, ExprStmt):
+                expr_code = self._transpile_expr(last_else.expr)
+                lines.append(self._indent(f"return {expr_code}"))
+            elif isinstance(last_else, IfStmt):
+                lines.append(self._transpile_if_as_return(last_else))
+            else:
+                lines.append(self._transpile_stmt(last_else))
+            self.indent_level -= 1
         
         return "\n".join(lines)
     
@@ -377,8 +452,100 @@ class Transpiler:
             operand = self._transpile_expr(expr.operand)
             return f"({operand}).value"
         
+        elif isinstance(expr, MatchExpr):
+            return self._transpile_match_expr(expr)
+        
         else:
             raise ValueError(f"Unknown expression type: {type(expr)}")
+    
+    def _transpile_match_expr(self, expr: MatchExpr) -> str:
+        """
+        Transpile match expression to Python.
+        
+        Match expressions are transpiled to a conditional expression or
+        a helper function call that evaluates the pattern matching.
+        
+        For simple cases, we use Python's inline conditional:
+        ((lambda __match: v if isinstance(__match, Some) else 0)(subject))
+        
+        But for readability and correctness, we generate a helper pattern:
+        (v if (__match := subject) is not None and hasattr(__match, 'value') else 0)
+        
+        Actually, we'll use a simpler approach with if/elif in a lambda or
+        use walrus operator for inline evaluation.
+        """
+        subject = self._transpile_expr(expr.subject)
+        match_var = f"__match_{self._try_counter}"
+        self._try_counter += 1
+        
+        # Build a conditional expression chain
+        # We process arms in order, generating:
+        # (body1 if condition1 else (body2 if condition2 else ...))
+        
+        def build_conditional(arms: list[MatchArm]) -> str:
+            if not arms:
+                return "None"  # Fallback, shouldn't happen with exhaustive match
+            
+            arm = arms[0]
+            remaining = arms[1:]
+            
+            condition = self._pattern_condition(arm.pattern, match_var)
+            
+            # For patterns with bindings, we need to extract the value
+            body = self._transpile_arm_body(arm, match_var)
+            
+            if not remaining:
+                # Last arm - no else needed (exhaustive match)
+                return body
+            else:
+                rest = build_conditional(remaining)
+                return f"({body} if {condition} else {rest})"
+        
+        # Generate: (lambda __match_N: conditional)(__subject)
+        conditional = build_conditional(expr.arms)
+        return f"((lambda {match_var}: {conditional})({subject}))"
+    
+    def _pattern_condition(self, pattern: Pattern, match_var: str) -> str:
+        """Generate condition for a pattern."""
+        if isinstance(pattern, SomePattern):
+            # Some(x) matches if match_var is not None and has .value
+            return f"{match_var} is not None and hasattr({match_var}, 'value')"
+        elif isinstance(pattern, NonePattern):
+            return f"{match_var} is None"
+        elif isinstance(pattern, OkPattern):
+            return f"isinstance({match_var}, Ok)"
+        elif isinstance(pattern, ErrPattern):
+            return f"isinstance({match_var}, Err)"
+        else:
+            return "True"  # Fallback
+    
+    def _transpile_arm_body(self, arm: MatchArm, match_var: str) -> str:
+        """Transpile arm body, substituting pattern bindings."""
+        import re
+        pattern = arm.pattern
+        body_expr = self._transpile_expr(arm.body)
+        
+        def replace_identifier(expr: str, old: str, new: str) -> str:
+            """Replace identifier only when it's a complete word."""
+            # Use word boundaries to only match complete identifiers
+            return re.sub(rf'\b{re.escape(old)}\b', new, expr)
+        
+        # Replace the binding with the appropriate extraction
+        if isinstance(pattern, SomePattern):
+            # Some(v) => body where v is match_var.value
+            binding = pattern.binding
+            body_expr = replace_identifier(body_expr, binding, f"{match_var}.value")
+        elif isinstance(pattern, OkPattern):
+            # Ok(v) => body where v is match_var.value
+            binding = pattern.binding
+            body_expr = replace_identifier(body_expr, binding, f"{match_var}.value")
+        elif isinstance(pattern, ErrPattern):
+            # Err(e) => body where e is match_var.error
+            binding = pattern.binding
+            body_expr = replace_identifier(body_expr, binding, f"{match_var}.error")
+        # NonePattern has no binding
+        
+        return body_expr
     
     # =========================================================================
     # Helpers

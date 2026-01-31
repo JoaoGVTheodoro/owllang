@@ -1,0 +1,11 @@
+// Test file for warnings
+
+fn example(unused_param: Int) {
+    let unused_var = 10
+    print("Hello")
+}
+
+fn with_dead_code() -> Int {
+    return 1
+    let x = 2  // unreachable
+}

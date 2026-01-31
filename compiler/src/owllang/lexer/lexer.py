@@ -41,6 +41,7 @@ class Lexer:
         'return': TokenType.RETURN,
         'true': TokenType.TRUE,
         'false': TokenType.FALSE,
+        'match': TokenType.MATCH,
     }
     
     # Single-character tokens
@@ -140,6 +141,12 @@ class Lexer:
             self._advance()
             self._advance()
             self._add_token(TokenType.ARROW, '->', start_line, start_column)
+            return
+        
+        if char == '=' and self._peek(1) == '>':
+            self._advance()
+            self._advance()
+            self._add_token(TokenType.FAT_ARROW, '=>', start_line, start_column)
             return
         
         if char == '=' and self._peek(1) == '=':

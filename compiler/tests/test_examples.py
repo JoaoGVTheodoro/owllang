@@ -55,7 +55,7 @@ class TestValidExamples:
         filepath = EXAMPLES_DIR / filename
         
         result = subprocess.run(
-            [sys.executable, "-m", "owllang", "check", str(filepath)],
+            [sys.executable, "-m", "owllang", "check", str(filepath), "--no-warnings"],
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent,  # compiler directory
@@ -66,7 +66,8 @@ class TestValidExamples:
             f"stdout: {result.stdout}\n"
             f"stderr: {result.stderr}"
         )
-        assert "No type errors found" in result.stdout
+        # Check for success message
+        assert "No errors found" in result.stdout or "No issues found" in result.stdout
 
 
 class TestInvalidExamples:

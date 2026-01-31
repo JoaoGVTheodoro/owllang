@@ -1,158 +1,270 @@
 # OwlLang 🦉
 
-> A modern programming language with full Python ecosystem compatibility
+> A modern, statically-typed language that transpiles to Python
 
-**OwlLang** is a statically-typed language that combines the safety of modern type systems with the power of Python's ecosystem. Write safer, cleaner code while using all your favorite Python libraries.
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-364%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
-## Why OwlLang?
+**OwlLang** is an experimental programming language with a strong type system, first-class error handling via `Option` and `Result` types, and seamless Python interoperability. It transpiles to clean, readable Python code.
 
-| Python Pain Point        | OwlLang Solution                |
-| ------------------------ | ------------------------------- |
-| Runtime type errors      | Compile-time type checking      |
-| `None` can be anything   | `Option[T]` types               |
-| Exceptions are invisible | `Result[T, E]` error handling   |
-| Mutable by default       | Immutable by default            |
-| GIL limits concurrency   | First-class async & parallelism |
-| Indentation errors       | Explicit block syntax           |
+## ⚠️ Status: Alpha / Experimental
 
-## Quick Example
+This is **v0.1.0-alpha** — the core language is semantically complete, but:
+- Breaking changes may occur
+- No backward compatibility guarantees
+- Not recommended for production use
+
+**However**, the language is consistent and testable. We encourage experimentation!
+
+---
+
+## 🚀 Quick Start
+
+### Hello World
 
 ```owl
-from python import pandas as pd
-from python import requests
-
-struct User {
-    name: String,
-    email: String,
-    age: Int
+// hello.ow
+fn main() {
+    print("Hello, OwlLang!")
 }
+```
 
-fn fetch_users() -> Result[List[User], String] {
-    try {
-        let response = requests.get("https://api.example.com/users")
-        let data = response.json()
-        
-        Ok(data.map(|u| User {
-            name: u["name"],
-            email: u["email"],
-            age: u["age"]
-        }))
-    } catch e {
-        Err("Failed to fetch users: {e}")
+```bash
+owl run hello.ow
+# Output: Hello, OwlLang!
+```
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/owl-lang/owl.git
+cd owl/compiler
+
+# Install in development mode
+pip install -e ".[dev]"
+
+# Verify installation
+owl --version
+# OwlLang 0.1.0-alpha
+```
+
+---
+
+## ✨ Features
+
+### Type-Safe Option & Result
+
+Handle nullable values and errors at compile time:
+
+```owl
+fn divide(a: Int, b: Int) -> Option[Int] {
+    if b == 0 {
+        None
+    } else {
+        Some(a / b)
     }
 }
 
-fn main() {
-    match fetch_users() {
-        Ok(users) => {
-            let df = pd.DataFrame(users)
-            let adults = df[df["age"] >= 18]
-            print("Adult users:\n{adults}")
-        },
-        Err(e) => print("Error: {e}")
+fn read_file(path: String) -> Result[String, String] {
+    if exists(path) {
+        Ok(contents)
+    } else {
+        Err("File not found")
     }
 }
 ```
 
-## Key Features
+### Pattern Matching with `match`
 
-### 🔒 Type Safety
+Exhaustive pattern matching on Option and Result:
+
+```owl
+fn handle_result(value: Option[Int]) -> String {
+    match value {
+        Some(n) => "Got: " + n,
+        None => "Nothing"
+    }
+}
+
+fn process(result: Result[Int, String]) -> Int {
+    match result {
+        Ok(value) => value,
+        Err(msg) => {
+            print("Error: " + msg)
+            0
+        }
+    }
+}
+```
+
+### Error Propagation with `?`
+
+Propagate errors cleanly with the try operator:
+
+```owl
+fn compute() -> Result[Int, String] {
+    let a = step1()?  // Returns early if Err
+    let b = step2(a)?
+    Ok(a + b)
+}
+```
+
+### Implicit Returns
+
+The last expression in a function is the return value:
 
 ```owl
 fn add(a: Int, b: Int) -> Int {
-    a + b
+    a + b  // No 'return' needed
 }
 
-add(1, 2)       // ✅ OK
-add(1, "two")   // ❌ Compile error
-```
-
-### 📦 Option Types (No More Null)
-
-```owl
-fn find_user(id: Int) -> Option[User] {
-    users.get(id)
-}
-
-// Must handle both cases
-match find_user(42) {
-    Some(user) => use(user),
-    None => handle_missing()
+fn classify(n: Int) -> String {
+    if n > 0 {
+        "positive"
+    } else if n < 0 {
+        "negative"
+    } else {
+        "zero"
+    }
 }
 ```
 
-### ⚡ Pipe Operator
+### Python Interop
+
+Use any Python library:
 
 ```owl
-let result = data
-    |> filter(_ > 0)
-    |> map(_ * 2)
-    |> sorted()
-    |> take(10)
-```
+from python import math
+from python import json
 
-### 🔗 Full Python Interop
-
-```owl
-from python import numpy as np
-from python import matplotlib.pyplot as plt
-
-let x = np.linspace(0, 2 * np.pi, 100)
-let y = np.sin(x)
-
-plt.plot(x, y)
-plt.show()
-```
-
-### 🚀 Modern Concurrency
-
-```owl
-async fn fetch_all(urls: List[String]) -> List[Response] {
-    await parallel(urls.map(fetch))
+fn calculate() {
+    let result = math.sqrt(16.0)
+    print(result)  // 4.0
 }
 ```
 
-## Installation
+### Rich Diagnostics
+
+Clear, actionable error messages:
+
+```
+error[E0301]: incompatible types in assignment
+ --> main.ow:5:10
+  |
+5 |     let x: Int = "hello"
+  |            ^^^ expected Int, found String
+  |
+  = help: change the type annotation or convert the value
+```
+
+Helpful warnings:
+
+```
+warning[W0101]: unused variable `x`
+ --> main.ow:3:9
+  |
+3 |     let x = 42
+  |         ^ unused variable
+  |
+  = hint: if this is intentional, prefix with underscore: `_x`
+```
+
+---
+
+## 🛠️ CLI Usage
 
 ```bash
-# Coming soon!
-curl -sSf https://install.owllang.dev | sh
+# Compile to Python
+owl compile program.ow           # Creates program.py
+owl compile program.ow -o out.py # Custom output file
+
+# Run directly
+owl run program.ow
+
+# Type check only
+owl check program.ow             # Shows errors and warnings
+owl check program.ow -W          # Treat warnings as errors
+owl check program.ow --no-warnings  # Suppress warnings
+
+# Debug
+owl tokens program.ow            # Show lexer tokens
+owl ast program.ow               # Show AST
 ```
 
-## Documentation
+---
 
-- [Philosophy](docs/PHILOSOPHY.md) - Why OwlLang exists
-- [Syntax Guide](docs/SYNTAX.md) - Complete language reference
-- [Architecture](docs/ARCHITECTURE.md) - Technical details
-- [Comparison with Python](docs/COMPARISON.md) - What's different
-- [Roadmap](docs/ROADMAP.md) - Development timeline
+## 📁 Examples
 
-## Examples
+The [examples/](examples/) directory contains working examples:
 
-See the [examples/](examples/) directory:
+| File                        | Description          |
+| --------------------------- | -------------------- |
+| `00_hello_world.ow`         | Basic hello world    |
+| `01_variables_and_types.ow` | Type annotations     |
+| `02_functions.ow`           | Function definitions |
+| `03_if_expression.ow`       | If as expression     |
+| `04_option_basic.ow`        | Option type usage    |
+| `05_result_basic.ow`        | Result type usage    |
+| `07_python_import.ow`       | Python interop       |
+| `08_try_operator.ow`        | Error propagation    |
 
-- [Hello World](examples/01_hello_world.owl)
-- [Variables & Types](examples/02_variables.owl)
-- [Functions](examples/03_functions.owl)
-- [Classes & Structs](examples/04_classes.owl)
-- [Python Interop](examples/05_python_interop.owl)
+Run any example:
 
-## Project Status
+```bash
+owl run examples/00_hello_world.ow
+```
 
-🚧 **Phase 1: MVP** - Currently in development
+---
 
-We're building the core compiler and Python transpiler. See our [Roadmap](docs/ROADMAP.md) for details.
+## 🚫 What OwlLang is NOT (yet)
 
-## Contributing
+To set expectations clearly:
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+- **No full generics** — Only `Option[T]` and `Result[T, E]` are parameterized
+- **No custom types** — Structs, classes, enums not yet implemented
+- **No runtime** — Transpiles to Python, depends on Python runtime
+- **No performance guarantees** — Focus is on correctness, not speed
+- **No backward compatibility** — API may change before 1.0
+- **No package manager** — Use pip for dependencies
+- **No LSP/IDE support** — Editor tooling planned for future
 
-## License
+---
 
-OwlLang is open source under the [MIT License](LICENSE).
+## 🧪 Running Tests
+
+```bash
+cd compiler
+pip install -e ".[dev]"
+pytest -v
+# 364 tests passing
+```
+
+---
+
+## 📚 Documentation
+
+- [Philosophy](docs/PHILOSOPHY.md) — Why OwlLang exists
+- [Syntax Guide](docs/SYNTAX.md) — Language reference
+- [Architecture](docs/ARCHITECTURE.md) — Compiler internals
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE).
 
 ---
 
 <p align="center">
-  <i>🦉 "Wisdom comes from seeing clearly in the dark"</i>
+  <b>🦉 OwlLang v0.1.0-alpha</b><br>
+  <i>"Wisdom comes from seeing clearly in the dark"</i>
 </p>

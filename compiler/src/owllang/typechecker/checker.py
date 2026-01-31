@@ -18,6 +18,8 @@ from ..ast import (
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
     Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    # Pattern Matching
+    MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Type Annotations
     TypeAnnotation,
     # Statements
@@ -39,6 +41,10 @@ from ..diagnostics import (
     branch_type_mismatch_error, condition_not_bool_error, wrong_arg_count_error,
     cannot_negate_error, wrong_type_arity_error, unknown_type_error,
     try_not_result_error, try_outside_result_fn_error, try_error_type_mismatch_error,
+    # Warnings
+    Warning,
+    unused_variable_warning, unused_parameter_warning,
+    unreachable_code_warning, variable_shadows_warning,
 )
 
 if TYPE_CHECKING:
@@ -70,23 +76,39 @@ class TypeError:
 
 
 # =============================================================================
+# Variable Info for tracking usage
+# =============================================================================
+
+@dataclass
+class VarInfo:
+    """Information about a variable for warning analysis."""
+    name: str
+    typ: OwlType
+    span: Span | None = None
+    is_parameter: bool = False
+    used: bool = False
+
+
+# =============================================================================
 # Type Environment
 # =============================================================================
 
 class TypeEnv:
     """
     Type environment that tracks variable and function types.
-    Supports nested scopes.
+    Supports nested scopes and usage tracking for warnings.
     """
     
     def __init__(self, parent: TypeEnv | None = None) -> None:
         self.parent = parent
         self.variables: dict[str, OwlType] = {}
+        self.var_info: dict[str, VarInfo] = {}  # Extended info for warnings
         self.functions: dict[str, tuple[list[OwlType], OwlType]] = {}
     
-    def define_var(self, name: str, typ: OwlType) -> None:
+    def define_var(self, name: str, typ: OwlType, span: Span | None = None, is_parameter: bool = False) -> None:
         """Define a variable in current scope."""
         self.variables[name] = typ
+        self.var_info[name] = VarInfo(name=name, typ=typ, span=span, is_parameter=is_parameter)
     
     def lookup_var(self, name: str) -> OwlType | None:
         """Look up a variable, searching parent scopes."""
@@ -94,6 +116,28 @@ class TypeEnv:
             return self.variables[name]
         if self.parent:
             return self.parent.lookup_var(name)
+        return None
+    
+    def mark_var_used(self, name: str) -> None:
+        """Mark a variable as used."""
+        if name in self.var_info:
+            self.var_info[name].used = True
+        elif self.parent:
+            self.parent.mark_var_used(name)
+    
+    def get_unused_vars(self) -> list[VarInfo]:
+        """Get all unused variables in this scope (not parent scopes)."""
+        return [
+            info for info in self.var_info.values()
+            if not info.used and not info.name.startswith('_')
+        ]
+    
+    def var_exists_in_parent(self, name: str) -> Span | None:
+        """Check if variable exists in parent scope (for shadowing)."""
+        if self.parent:
+            if name in self.parent.var_info:
+                return self.parent.var_info[name].span
+            return self.parent.var_exists_in_parent(name)
         return None
     
     def define_fn(self, name: str, param_types: list[OwlType], return_type: OwlType) -> None:
@@ -121,13 +165,14 @@ class TypeChecker:
     """
     Type checker for OwlLang.
     
-    Validates types in the AST and collects errors.
+    Validates types in the AST and collects errors and warnings.
     Does not modify the AST.
     """
     
     def __init__(self, filename: str = "<unknown>") -> None:
         self.errors: list[TypeError] = []
         self.diagnostics: list[DiagnosticError] = []
+        self.warnings: list[Warning] = []
         self.env = TypeEnv()
         self.current_function_return_type: OwlType | None = None
         self.filename = filename
@@ -140,6 +185,10 @@ class TypeChecker:
         # print accepts any type
         self.env.define_fn("print", [ANY], VOID)
     
+    def _add_warning(self, warning: Warning) -> None:
+        """Add a warning to the warning list."""
+        self.warnings.append(warning)
+    
     def check(self, program: Program) -> list[TypeError]:
         """
         Check the entire program for type errors.
@@ -147,6 +196,7 @@ class TypeChecker:
         """
         self.errors = []
         self.diagnostics = []
+        self.warnings = []
         
         # First pass: collect function signatures
         for fn in program.functions:
@@ -171,6 +221,10 @@ class TypeChecker:
             self._check_stmt(stmt)
         
         return self.errors
+    
+    def get_warnings(self) -> list[Warning]:
+        """Get all warnings collected during type checking."""
+        return self.warnings
     
     def _register_function(self, fn: FnDecl) -> None:
         """Register a function's signature in the environment."""
@@ -236,6 +290,17 @@ class TypeChecker:
         self._add_diagnostic(unknown_type_error(name, span))
         return UNKNOWN
     
+    def _stmt_has_return(self, stmt: Stmt) -> bool:
+        """Check if a statement contains a return statement."""
+        if isinstance(stmt, ReturnStmt):
+            return True
+        elif isinstance(stmt, IfStmt):
+            # If/else has return if both branches have return
+            then_has_return = any(self._stmt_has_return(s) for s in stmt.then_body)
+            else_has_return = stmt.else_body and any(self._stmt_has_return(s) for s in stmt.else_body)
+            return then_has_return and else_has_return
+        return False
+    
     def _check_function(self, fn: FnDecl) -> None:
         """Check a function declaration."""
         # Create new scope for function body
@@ -248,34 +313,120 @@ class TypeChecker:
             param_type = ANY
             if param.type_annotation:
                 param_type = self._parse_type(param.type_annotation)
-            self.env.define_var(param.name, param_type)
+            self.env.define_var(param.name, param_type, span=param.span, is_parameter=True)
         
         # Set expected return type
         fn_info = old_env.lookup_fn(fn.name)
         if fn_info:
             self.current_function_return_type = fn_info[1]
         
+        # Check for empty body with non-void return type
+        if (self.current_function_return_type and 
+            self.current_function_return_type != VOID and
+            not fn.body):
+            self._error(
+                f"Function '{fn.name}' declares return type {self.current_function_return_type} but has empty body",
+                1, 1
+            )
+            self.env = old_env
+            self.current_function_return_type = None
+            return
+        
         # Check body statements
         last_stmt_type: OwlType = VOID
+        has_explicit_return = False
+        found_return_at: int | None = None  # Track position of first return
+        
         for i, stmt in enumerate(fn.body):
+            # Check for unreachable code (code after return)
+            if found_return_at is not None:
+                self._add_warning(unreachable_code_warning(
+                    getattr(stmt, 'span', None)
+                ))
+            
             if isinstance(stmt, ExprStmt):
                 # Track the type of the last expression (for implicit return)
                 last_stmt_type = self._check_expr(stmt.expr)
+            elif isinstance(stmt, ReturnStmt):
+                self._check_stmt(stmt)
+                has_explicit_return = True
+                last_stmt_type = VOID
+                if found_return_at is None:
+                    found_return_at = i
+            elif isinstance(stmt, IfStmt):
+                # Check if as expression and track type for implicit return
+                last_stmt_type = self._check_if_expr(stmt)
+                # Also check if it has explicit returns in all branches
+                if self._stmt_has_return(stmt):
+                    has_explicit_return = True
+                    if found_return_at is None:
+                        found_return_at = i
             else:
                 self._check_stmt(stmt)
                 last_stmt_type = VOID
         
+        # Skip implicit return check if there's an explicit return
+        if has_explicit_return:
+            self.env = old_env
+            self.current_function_return_type = None
+            return
+        
         # Check implicit return (last expression as return value)
         if (self.current_function_return_type and 
-            self.current_function_return_type != VOID and
-            fn.body and 
-            isinstance(fn.body[-1], ExprStmt)):
-            # Last statement is an expression - check if it matches return type
-            if not types_compatible(self.current_function_return_type, last_stmt_type):
-                self._error(
-                    f"Implicit return type mismatch: expected {self.current_function_return_type}, got {last_stmt_type}",
-                    1, 1
-                )
+            self.current_function_return_type != VOID):
+            
+            if not fn.body:
+                # Already handled above
+                pass
+            else:
+                last_stmt = fn.body[-1]
+                
+                # Check if last statement can be an implicit return
+                if isinstance(last_stmt, ExprStmt):
+                    last_expr = last_stmt.expr
+                    # Check if it's an if without else (not exhaustive)
+                    if isinstance(last_expr, IfStmt) and not last_expr.else_body:
+                        self._error(
+                            f"Function '{fn.name}' must return {self.current_function_return_type} "
+                            "on all paths, but 'if' expression is missing 'else' branch",
+                            1, 1
+                        )
+                    elif not types_compatible(self.current_function_return_type, last_stmt_type):
+                        self._error(
+                            f"Implicit return type mismatch: expected {self.current_function_return_type}, got {last_stmt_type}",
+                            1, 1
+                        )
+                elif isinstance(last_stmt, IfStmt):
+                    # IfStmt directly in body - check exhaustiveness
+                    if not last_stmt.else_body:
+                        self._error(
+                            f"Function '{fn.name}' must return {self.current_function_return_type} "
+                            "on all paths, but 'if' expression is missing 'else' branch",
+                            1, 1
+                        )
+                    elif not types_compatible(self.current_function_return_type, last_stmt_type):
+                        self._error(
+                            f"Implicit return type mismatch: expected {self.current_function_return_type}, got {last_stmt_type}",
+                            1, 1
+                        )
+                else:
+                    # Last statement is not an expression (e.g., let statement)
+                    self._error(
+                        f"Function '{fn.name}' must return {self.current_function_return_type}, "
+                        "but last statement is not an expression",
+                        1, 1
+                    )
+        
+        # Generate warnings for unused variables and parameters
+        for var_info in self.env.get_unused_vars():
+            if var_info.is_parameter:
+                self._add_warning(unused_parameter_warning(
+                    var_info.name, fn.name, var_info.span
+                ))
+            else:
+                self._add_warning(unused_variable_warning(
+                    var_info.name, var_info.span
+                ))
         
         # Restore scope
         self.env = old_env
@@ -305,10 +456,10 @@ class TypeChecker:
                     1, 1  # TODO: track actual line/column in AST
                 )
             # Use the annotated type for the variable
-            self.env.define_var(stmt.name, expected_type)
+            self.env.define_var(stmt.name, expected_type, span=stmt.span)
         else:
             # Define variable with inferred type
-            self.env.define_var(stmt.name, value_type)
+            self.env.define_var(stmt.name, value_type, span=stmt.span)
     
     def _check_return(self, stmt: ReturnStmt) -> None:
         """Check return statement."""
@@ -363,6 +514,9 @@ class TypeChecker:
             last_then = stmt.then_body[-1]
             if isinstance(last_then, ExprStmt):
                 then_type = self._check_expr(last_then.expr)
+            elif isinstance(last_then, IfStmt):
+                # Nested if/else - recursively check as expression
+                then_type = self._check_if_expr(last_then)
             else:
                 self._check_stmt(last_then)
                 then_type = VOID
@@ -380,6 +534,9 @@ class TypeChecker:
             last_else = stmt.else_body[-1]
             if isinstance(last_else, ExprStmt):
                 else_type = self._check_expr(last_else.expr)
+            elif isinstance(last_else, IfStmt):
+                # Nested if/else - recursively check as expression
+                else_type = self._check_if_expr(last_else)
             else:
                 self._check_stmt(last_else)
                 else_type = VOID
@@ -422,6 +579,8 @@ class TypeChecker:
             if typ is None:
                 self._error(f"Undefined variable: {expr.name}", 1, 1)
                 return UNKNOWN
+            # Mark variable as used for unused variable warnings
+            self.env.mark_var_used(expr.name)
             return typ
         
         elif isinstance(expr, BinaryOp):
@@ -440,6 +599,13 @@ class TypeChecker:
         
         elif isinstance(expr, TryExpr):
             return self._check_try_expr(expr)
+        
+        elif isinstance(expr, MatchExpr):
+            return self._check_match_expr(expr)
+        
+        elif isinstance(expr, IfStmt):
+            # If used as expression
+            return self._check_if_expr(expr)
         
         return UNKNOWN
     
@@ -645,6 +811,116 @@ class TypeChecker:
         
         # Rule 4: return the Ok type
         return operand_type.ok_type
+    
+    def _check_match_expr(self, expr: MatchExpr) -> OwlType:
+        """
+        Check match expression.
+        
+        Rules:
+        1. Subject must be Option[T] or Result[T, E]
+        2. Patterns must match the subject type
+        3. Match must be exhaustive
+        4. All arm bodies must have compatible types
+        5. Pattern bindings are introduced in arm scope
+        """
+        subject_type = self._check_expr(expr.subject)
+        span = self._get_span(expr)
+        
+        # Rule 1: subject must be Option or Result
+        if not isinstance(subject_type, (OptionType, ResultType)):
+            self._error(
+                f"match requires Option or Result type, got {subject_type}",
+                span.start.line, span.start.column
+            )
+            return UNKNOWN
+        
+        # Determine expected patterns
+        if isinstance(subject_type, OptionType):
+            expected_patterns = {"Some", "None"}
+            inner_type = subject_type.inner
+        else:  # ResultType
+            expected_patterns = {"Ok", "Err"}
+            ok_type = subject_type.ok_type
+            err_type = subject_type.err_type
+        
+        # Track found patterns for exhaustivity check
+        found_patterns: set[str] = set()
+        arm_types: list[OwlType] = []
+        
+        for arm in expr.arms:
+            pattern = arm.pattern
+            
+            # Rule 2: validate pattern matches subject type
+            pattern_name = self._get_pattern_name(pattern)
+            
+            if pattern_name not in expected_patterns:
+                self._error(
+                    f"Pattern '{pattern_name}' is not valid for {subject_type}. "
+                    f"Expected: {', '.join(sorted(expected_patterns))}",
+                    span.start.line, span.start.column
+                )
+                continue
+            
+            found_patterns.add(pattern_name)
+            
+            # Rule 5: introduce binding in arm scope
+            arm_env = self.env.child_scope()
+            old_env = self.env
+            self.env = arm_env
+            
+            if isinstance(subject_type, OptionType):
+                if isinstance(pattern, SomePattern):
+                    self.env.define_var(pattern.binding, inner_type)
+            else:  # ResultType
+                if isinstance(pattern, OkPattern):
+                    self.env.define_var(pattern.binding, ok_type)
+                elif isinstance(pattern, ErrPattern):
+                    self.env.define_var(pattern.binding, err_type)
+            
+            # Type check the arm body
+            body_type = self._check_expr(arm.body)
+            arm_types.append(body_type)
+            
+            # Restore scope
+            self.env = old_env
+        
+        # Rule 3: check exhaustivity
+        missing_patterns = expected_patterns - found_patterns
+        if missing_patterns:
+            self._error(
+                f"Match is not exhaustive. Missing: {', '.join(sorted(missing_patterns))}",
+                span.start.line, span.start.column
+            )
+        
+        # Rule 4: check all arm types are compatible
+        if len(arm_types) == 0:
+            return UNKNOWN
+        
+        result_type = arm_types[0]
+        for i, arm_type in enumerate(arm_types[1:], 1):
+            if arm_type == ANY or result_type == ANY:
+                continue
+            if arm_type != result_type:
+                self._error(
+                    f"Match arm types must be compatible. "
+                    f"Arm 1 has type {result_type}, arm {i + 1} has type {arm_type}",
+                    span.start.line, span.start.column
+                )
+                return UNKNOWN
+        
+        return result_type
+    
+    def _get_pattern_name(self, pattern: Pattern) -> str:
+        """Get the name of a pattern for error messages."""
+        if isinstance(pattern, SomePattern):
+            return "Some"
+        elif isinstance(pattern, NonePattern):
+            return "None"
+        elif isinstance(pattern, OkPattern):
+            return "Ok"
+        elif isinstance(pattern, ErrPattern):
+            return "Err"
+        return "Unknown"
     
     def _get_span(self, node: Expr | Stmt | None) -> Span:
         """Get span from a node, returning DUMMY_SPAN if not available."""

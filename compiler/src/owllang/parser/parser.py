@@ -12,6 +12,9 @@ from ..ast import (
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
     Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    # Pattern Matching
+    Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
+    MatchArm, MatchExpr,
     # Type Annotations
     TypeAnnotation,
     # Statements
@@ -394,7 +397,7 @@ class Parser:
         return args
     
     def _parse_primary(self) -> Expr:
-        """Parse primary expression (literals, identifiers, grouped)."""
+        """Parse primary expression (literals, identifiers, grouped, match)."""
         # Integer
         if token := self._match(TokenType.INT):
             return IntLiteral(int(token.value))
@@ -413,6 +416,10 @@ class Parser:
         if self._match(TokenType.FALSE):
             return BoolLiteral(False)
         
+        # Match expression
+        if match_token := self._match(TokenType.MATCH):
+            return self._parse_match_expr(match_token)
+        
         # Identifier
         if token := self._match(TokenType.IDENT):
             return Identifier(token.value)
@@ -424,6 +431,86 @@ class Parser:
             return expr
         
         raise ParseError(f"Unexpected token: {self._peek().value!r}", self._peek())
+    
+    def _parse_match_expr(self, match_token: Token) -> MatchExpr:
+        """
+        Parse match expression.
+        
+        match expr {
+            pattern => body,
+            pattern => body,
+        }
+        """
+        # Parse subject expression
+        subject = self._parse_expr()
+        
+        # Expect opening brace
+        self._expect(TokenType.LBRACE, "Expected '{' after match expression")
+        
+        # Parse arms
+        arms: list[MatchArm] = []
+        while not self._check(TokenType.RBRACE):
+            arm = self._parse_match_arm()
+            arms.append(arm)
+            
+            # Optional comma between arms
+            self._match(TokenType.COMMA)
+        
+        # Expect closing brace
+        self._expect(TokenType.RBRACE, "Expected '}' after match arms")
+        
+        return MatchExpr(
+            subject=subject,
+            arms=arms,
+            span=match_token.span()
+        )
+    
+    def _parse_match_arm(self) -> MatchArm:
+        """
+        Parse a single match arm.
+        
+        pattern => body
+        """
+        pattern = self._parse_pattern()
+        
+        self._expect(TokenType.FAT_ARROW, "Expected '=>' after pattern")
+        
+        body = self._parse_expr()
+        
+        return MatchArm(
+            pattern=pattern,
+            body=body,
+            span=None  # Could add span tracking here
+        )
+    
+    def _parse_pattern(self) -> Pattern:
+        """
+        Parse a pattern: Some(x), None, Ok(v), Err(e)
+        """
+        token = self._expect(TokenType.IDENT, "Expected pattern (Some, None, Ok, or Err)")
+        pattern_name = token.value
+        span = token.span()
+        
+        if pattern_name == "None":
+            return NonePattern(span=span)
+        
+        if pattern_name in ("Some", "Ok", "Err"):
+            self._expect(TokenType.LPAREN, f"Expected '(' after {pattern_name}")
+            binding_token = self._expect(TokenType.IDENT, "Expected binding name")
+            binding = binding_token.value
+            self._expect(TokenType.RPAREN, f"Expected ')' after binding")
+            
+            if pattern_name == "Some":
+                return SomePattern(binding=binding, span=span)
+            elif pattern_name == "Ok":
+                return OkPattern(binding=binding, span=span)
+            else:  # Err
+                return ErrPattern(binding=binding, span=span)
+        
+        raise ParseError(
+            f"Unknown pattern '{pattern_name}'. Expected Some, None, Ok, or Err",
+            token
+        )
 
 
 def parse(tokens: list[Token]) -> Program:

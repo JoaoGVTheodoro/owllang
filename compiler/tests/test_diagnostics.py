@@ -194,7 +194,7 @@ class TestErrorFactories:
         span = Span.single(5, 10, 5)
         error = type_mismatch_error("Int", "String", span)
         
-        assert error.code == ErrorCode.TYPE_MISMATCH
+        assert error.code == ErrorCode.TYPE_MISMATCH.value
         assert "incompatible" in error.message
         assert any("expected Int" in note for note in error.notes)
         assert any("found String" in note for note in error.notes)
@@ -204,7 +204,7 @@ class TestErrorFactories:
         span = Span.single(3, 5, 3)
         error = undefined_variable_error("xyz", span)
         
-        assert error.code == ErrorCode.UNDEFINED_VARIABLE
+        assert error.code == ErrorCode.UNDEFINED_VARIABLE.value
         assert "xyz" in error.message
     
     def test_undefined_function_error(self) -> None:
@@ -212,7 +212,7 @@ class TestErrorFactories:
         span = Span.single(7, 1, 5)
         error = undefined_function_error("foo", span)
         
-        assert error.code == ErrorCode.UNDEFINED_FUNCTION
+        assert error.code == ErrorCode.UNDEFINED_FUNCTION.value
         assert "foo" in error.message
     
     def test_return_type_mismatch_error(self) -> None:
@@ -220,7 +220,7 @@ class TestErrorFactories:
         span = Span.single(10, 5, 10)
         error = return_type_mismatch_error("Int", "String", span)
         
-        assert error.code == ErrorCode.RETURN_TYPE_MISMATCH
+        assert error.code == ErrorCode.RETURN_TYPE_MISMATCH.value
         assert "return" in error.message.lower()
     
     def test_invalid_operation_error(self) -> None:
@@ -228,7 +228,7 @@ class TestErrorFactories:
         span = Span.single(5, 10, 1)
         error = invalid_operation_error("+", "Int", "String", span)
         
-        assert error.code == ErrorCode.INVALID_OPERATION
+        assert error.code == ErrorCode.INVALID_OPERATION.value
         assert "+" in error.message
     
     def test_branch_type_mismatch_error(self) -> None:
@@ -236,7 +236,7 @@ class TestErrorFactories:
         span = Span.single(8, 1, 20)
         error = branch_type_mismatch_error("Int", "String", span)
         
-        assert error.code == ErrorCode.BRANCH_TYPE_MISMATCH
+        assert error.code == ErrorCode.BRANCH_TYPE_MISMATCH.value
         assert "branch" in error.message.lower()
 
 

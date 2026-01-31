@@ -75,6 +75,10 @@ def main() -> int:
     # check command (type check)
     check_parser = subparsers.add_parser("check", help="Type check without compiling")
     check_parser.add_argument("file", help="OwlLang source file (.ow)")
+    check_parser.add_argument("--deny-warnings", "-W", action="store_true",
+                             help="Treat warnings as errors")
+    check_parser.add_argument("--no-warnings", action="store_true",
+                             help="Suppress all warnings")
     
     # tokens command (debug)
     tokens_parser = subparsers.add_parser("tokens", help="Show tokens (debug)")
@@ -96,7 +100,9 @@ def main() -> int:
         elif args.command == "run":
             return cmd_run(args.file)
         elif args.command == "check":
-            return cmd_check(args.file)
+            return cmd_check(args.file, 
+                           deny_warnings=args.deny_warnings,
+                           no_warnings=args.no_warnings)
         elif args.command == "tokens":
             return cmd_tokens(args.file)
         elif args.command == "ast":
@@ -176,7 +182,7 @@ def cmd_run(input_file: str) -> int:
         Path(temp_path).unlink(missing_ok=True)
 
 
-def cmd_check(input_file: str) -> int:
+def cmd_check(input_file: str, deny_warnings: bool = False, no_warnings: bool = False) -> int:
     """Type check OwlLang file without generating output."""
     from .typechecker import TypeChecker, TypeError as OwlTypeError
     
@@ -193,14 +199,42 @@ def cmd_check(input_file: str) -> int:
     # Type check
     checker = TypeChecker()
     errors = checker.check(ast)
+    warnings = checker.get_warnings()
     
-    if errors:
+    has_errors = len(errors) > 0
+    has_warnings = len(warnings) > 0
+    
+    # Print errors
+    if has_errors:
         print(f"\033[91mType errors in {input_file}:\033[0m")
         for error in errors:
             print(f"  {error}")
+    
+    # Print warnings (unless suppressed)
+    if has_warnings and not no_warnings:
+        color = "\033[93m" if not deny_warnings else "\033[91m"  # Yellow or red
+        label = "Warnings" if not deny_warnings else "Errors (from warnings)"
+        print(f"{color}{label} in {input_file}:\033[0m")
+        for warning in warnings:
+            print(f"  warning[{warning.code.value}]: {warning.message}")
+            for hint in warning.hints:
+                print(f"    hint: {hint}")
+    
+    # Determine exit code
+    if has_errors:
         return 1
     
-    print(f"✓ {input_file}: No type errors found")
+    if has_warnings and deny_warnings:
+        return 1
+    
+    # Success message
+    if not has_errors and not has_warnings:
+        print(f"✓ {input_file}: No issues found")
+    elif not has_errors and has_warnings and not no_warnings:
+        print(f"✓ {input_file}: No errors found ({len(warnings)} warning(s))")
+    else:
+        print(f"✓ {input_file}: No errors found")
+    
     return 0
 
 
