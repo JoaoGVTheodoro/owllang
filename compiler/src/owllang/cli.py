@@ -67,10 +67,14 @@ def main() -> int:
     compile_parser = subparsers.add_parser("compile", help="Compile .ow to .py")
     compile_parser.add_argument("file", help="OwlLang source file (.ow)")
     compile_parser.add_argument("-o", "--output", help="Output file (default: <file>.py)")
+    compile_parser.add_argument("--profile", action="store_true",
+                               help="Show compilation timing breakdown")
     
     # run command
     run_parser = subparsers.add_parser("run", help="Compile and run")
     run_parser.add_argument("file", help="OwlLang source file (.ow)")
+    run_parser.add_argument("--profile", action="store_true",
+                           help="Show compilation timing breakdown")
     
     # check command (type check)
     check_parser = subparsers.add_parser("check", help="Type check without compiling")
@@ -96,9 +100,9 @@ def main() -> int:
     
     try:
         if args.command == "compile":
-            return cmd_compile(args.file, args.output)
+            return cmd_compile(args.file, args.output, profile=getattr(args, 'profile', False))
         elif args.command == "run":
-            return cmd_run(args.file)
+            return cmd_run(args.file, profile=getattr(args, 'profile', False))
         elif args.command == "check":
             return cmd_check(args.file, 
                            deny_warnings=args.deny_warnings,
@@ -123,7 +127,7 @@ def main() -> int:
     return 0
 
 
-def cmd_compile(input_file: str, output_file: str | None = None) -> int:
+def cmd_compile(input_file: str, output_file: str | None = None, profile: bool = False) -> int:
     """Compile OwlLang file to Python."""
     input_path = Path(input_file)
     
@@ -141,7 +145,7 @@ def cmd_compile(input_file: str, output_file: str | None = None) -> int:
     
     # Compile
     print(f"Compiling {input_path} → {output_path}")
-    python_code = compile_source(source)
+    python_code = compile_source(source, profile=profile)
     
     # Write output
     output_path.write_text(python_code)
@@ -150,7 +154,7 @@ def cmd_compile(input_file: str, output_file: str | None = None) -> int:
     return 0
 
 
-def cmd_run(input_file: str) -> int:
+def cmd_run(input_file: str, profile: bool = False) -> int:
     """Compile and run OwlLang file."""
     input_path = Path(input_file)
     
@@ -159,7 +163,7 @@ def cmd_run(input_file: str) -> int:
     
     # Read and compile
     source = input_path.read_text()
-    python_code = compile_source(source)
+    python_code = compile_source(source, profile=profile)
     
     # Write to temp file and run
     with tempfile.NamedTemporaryFile(

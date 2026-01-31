@@ -101,13 +101,14 @@ __all__ = [
 ]
 
 
-def compile_source(source: str, check_types: bool = True) -> str:
+def compile_source(source: str, check_types: bool = True, profile: bool = False) -> str:
     """
     Compile OwlLang source code to Python.
 
     Args:
         source: OwlLang source code string
         check_types: Whether to run the type checker (default: True)
+        profile: Whether to print timing information (default: False)
 
     Returns:
         Generated Python source code
@@ -121,14 +122,51 @@ def compile_source(source: str, check_types: bool = True) -> str:
         >>> code = compile_source('let x = 42')
         >>> exec(code)
     """
-    tokens = tokenize(source)
-    ast = parse(tokens)
+    import time
     
-    if check_types:
-        checker = TypeChecker()
-        errors = checker.check(ast)
-        if errors:
-            raise CompileError(errors)
-    
-    python_code = transpile(ast)
-    return python_code
+    if profile:
+        start_total = time.perf_counter()
+        
+        start_lex = time.perf_counter()
+        tokens = tokenize(source)
+        lex_time = time.perf_counter() - start_lex
+        
+        start_parse = time.perf_counter()
+        ast = parse(tokens)
+        parse_time = time.perf_counter() - start_parse
+        
+        if check_types:
+            start_check = time.perf_counter()
+            checker = TypeChecker()
+            errors = checker.check(ast)
+            check_time = time.perf_counter() - start_check
+            if errors:
+                raise CompileError(errors)
+        else:
+            check_time = 0.0
+        
+        start_transpile = time.perf_counter()
+        python_code = transpile(ast)
+        transpile_time = time.perf_counter() - start_transpile
+        
+        total_time = time.perf_counter() - start_total
+        
+        print(f"[PROFILE] Lexer:      {lex_time*1000:.3f}ms")
+        print(f"[PROFILE] Parser:     {parse_time*1000:.3f}ms")
+        print(f"[PROFILE] TypeChecker: {check_time*1000:.3f}ms")
+        print(f"[PROFILE] Transpiler: {transpile_time*1000:.3f}ms")
+        print(f"[PROFILE] TOTAL:      {total_time*1000:.3f}ms")
+        
+        return python_code
+    else:
+        tokens = tokenize(source)
+        ast = parse(tokens)
+        
+        if check_types:
+            checker = TypeChecker()
+            errors = checker.check(ast)
+            if errors:
+                raise CompileError(errors)
+        
+        python_code = transpile(ast)
+        return python_code

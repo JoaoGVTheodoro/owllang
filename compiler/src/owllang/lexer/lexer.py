@@ -69,6 +69,8 @@ class Lexer:
         self.line = 1
         self.column = 1
         self.tokens: list[Token] = []
+        # Cache source length to avoid repeated len() calls
+        self.source_len = len(source)
     
     def tokenize(self) -> list[Token]:
         """Convert source code to list of tokens."""
@@ -81,12 +83,12 @@ class Lexer:
     
     def _is_at_end(self) -> bool:
         """Check if we've consumed all source code."""
-        return self.pos >= len(self.source)
+        return self.pos >= self.source_len
     
     def _peek(self, offset: int = 0) -> str:
         """Look at current character without consuming."""
         pos = self.pos + offset
-        if pos >= len(self.source):
+        if pos >= self.source_len:
             return '\0'
         return self.source[pos]
     
@@ -236,26 +238,58 @@ class Lexer:
     
     def _scan_number(self, start_line: int, start_column: int) -> None:
         """Scan an integer or float literal."""
-        value = ''
+        # Optimized: use slice instead of building string character by character
+        start_pos = self.pos
+        source = self.source
+        source_len = self.source_len
+        pos = self.pos
         
-        while not self._is_at_end() and self._peek().isdigit():
-            value += self._advance()
+        # Scan integer part
+        while pos < source_len and source[pos].isdigit():
+            pos += 1
         
         # Check for float
-        if self._peek() == '.' and self._peek(1).isdigit():
-            value += self._advance()  # The '.'
-            while not self._is_at_end() and self._peek().isdigit():
-                value += self._advance()
+        is_float = False
+        if pos < source_len and source[pos] == '.' and pos + 1 < source_len and source[pos + 1].isdigit():
+            is_float = True
+            pos += 1  # Skip '.'
+            while pos < source_len and source[pos].isdigit():
+                pos += 1
+        
+        value = source[start_pos:pos]
+        
+        # Update position and column
+        chars_consumed = pos - self.pos
+        self.column += chars_consumed
+        self.pos = pos
+        
+        if is_float:
             self._add_token(TokenType.FLOAT, value, start_line, start_column)
         else:
             self._add_token(TokenType.INT, value, start_line, start_column)
     
     def _scan_identifier(self, start_line: int, start_column: int) -> None:
         """Scan an identifier or keyword."""
-        value = ''
+        # Optimized: use slice instead of building string character by character
+        start_pos = self.pos
+        source = self.source
+        source_len = self.source_len
+        pos = self.pos
         
-        while not self._is_at_end() and (self._peek().isalnum() or self._peek() == '_'):
-            value += self._advance()
+        # Scan while identifier character
+        while pos < source_len:
+            char = source[pos]
+            if char.isalnum() or char == '_':
+                pos += 1
+            else:
+                break
+        
+        value = source[start_pos:pos]
+        
+        # Update position and column
+        chars_consumed = pos - self.pos
+        self.column += chars_consumed
+        self.pos = pos
         
         # Check if it's a keyword
         token_type = self.KEYWORDS.get(value, TokenType.IDENT)
