@@ -1,5 +1,5 @@
 """
-CLI UX tests for OwlLang v0.1.5-alpha.
+CLI UX tests for OwlLang.
 
 Tests for:
 1. Directory support in check command

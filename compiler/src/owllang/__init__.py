@@ -57,7 +57,7 @@ class CompileError(Exception):
         super().__init__(f"{len(errors)} type error(s) found")
 
 
-__version__ = "0.1.5-alpha"
+__version__ = "0.1.6-alpha"
 __all__ = [
     # Version
     "__version__",

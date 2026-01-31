@@ -5,6 +5,30 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6-alpha] - 2026-01-31
+
+### Added
+- **Stability contract**: `docs/STABILITY.md` defining what is stable, experimental, and internal
+- **Contract regression tests**: 25 new tests verifying stability guarantees
+  - CLI interface (5 tests)
+  - Exit codes (4 tests)
+  - JSON schema (6 tests)
+  - Diagnostic codes (2 tests)
+  - Language semantics (4 tests)
+  - Determinism (2 tests)
+  - Warning suppression (2 tests)
+
+### Improved
+- **INVARIANTS.md**: Added cross-reference to STABILITY.md
+- **README.md**: Updated to v0.1.6-alpha, added link to stability contract
+- **Documentation**: Clearer versioning policy and deprecation rules
+
+### Technical
+- 465 tests passing (added 25 stability contract tests)
+- Zero language changes (stability freeze)
+- Zero breaking changes
+- **Final release of 0.1.x line**
+
 ## [0.1.5-alpha] - 2026-01-31
 
 ### Added

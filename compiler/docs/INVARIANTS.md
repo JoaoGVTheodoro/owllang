@@ -2,6 +2,8 @@
 
 This document defines fundamental properties that the OwlLang compiler must maintain at all times. These invariants are enforced by tests in [`tests/test_invariants.py`](../tests/test_invariants.py).
 
+> **See also**: [STABILITY.md](../../docs/STABILITY.md) for public API stability guarantees.
+
 ## 1. Diagnostic Code Format
 
 ### Error Codes
