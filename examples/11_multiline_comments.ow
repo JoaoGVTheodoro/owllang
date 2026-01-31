@@ -1,0 +1,36 @@
+/**
+ * OwlLang Multi-line Comment Example
+ * 
+ * This demonstrates the new multi-line comment syntax
+ * introduced in v0.1.1-alpha.
+ */
+
+/**
+ * Calculate the factorial of a number.
+ * 
+ * This is a classic recursive implementation
+ * that handles the base case (n <= 1) and
+ * recursively computes n * factorial(n-1).
+ */
+fn factorial(n: Int) -> Int {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+/**
+ * Main entry point.
+ * 
+ * Demonstrates:
+ * - Multi-line comments
+ * - Function calls
+ * - Python interop
+ */
+fn main() {
+    let result = factorial(5)
+    
+    /** Inline comment before print */
+    print(result)  // Should print 120
+}

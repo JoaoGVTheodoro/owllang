@@ -26,6 +26,7 @@ class ErrorCode(Enum):
     UNEXPECTED_CHAR = "E0101"
     UNTERMINATED_STRING = "E0102"
     INVALID_NUMBER = "E0103"
+    UNTERMINATED_COMMENT = "E0104"
     
     # Parser errors (E02xx)
     UNEXPECTED_TOKEN = "E0201"

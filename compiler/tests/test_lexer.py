@@ -136,6 +136,67 @@ class TestComments:
         # Should have: LET, IDENT, ASSIGN, INT, LET, IDENT, ASSIGN, INT, EOF
         let_tokens = [t for t in tokens if t.type == TokenType.LET]
         assert len(let_tokens) == 2
+    
+    def test_multiline_comment_simple(self) -> None:
+        """Lexer skips simple multi-line comments."""
+        tokens = tokenize("/** comment */\n42")
+        assert tokens[0].type == TokenType.INT
+        assert tokens[0].value == "42"
+    
+    def test_multiline_comment_multiple_lines(self) -> None:
+        """Lexer skips multi-line comments spanning multiple lines."""
+        source = """/**
+ * This is a multi-line comment
+ * describing something.
+ */
+fn main() { }"""
+        tokens = tokenize(source)
+        assert tokens[0].type == TokenType.FN
+        assert tokens[1].type == TokenType.IDENT
+        assert tokens[1].value == "main"
+    
+    def test_multiline_comment_containing_slashes(self) -> None:
+        """Lexer handles multi-line comments containing //."""
+        source = """/**
+ * This comment has // inside it
+ * and more // slashes
+ */
+42"""
+        tokens = tokenize(source)
+        assert tokens[0].type == TokenType.INT
+        assert tokens[0].value == "42"
+    
+    def test_multiline_comment_between_code(self) -> None:
+        """Lexer handles multi-line comments between code."""
+        source = "let x = /** comment */ 42"
+        tokens = tokenize(source)
+        assert tokens[0].type == TokenType.LET
+        assert tokens[1].type == TokenType.IDENT
+        assert tokens[2].type == TokenType.ASSIGN
+        assert tokens[3].type == TokenType.INT
+        assert tokens[3].value == "42"
+    
+    def test_multiline_comment_unterminated(self) -> None:
+        """Lexer raises error for unterminated multi-line comment."""
+        source = """/** this comment
+is not closed
+fn main() { }"""
+        with pytest.raises(LexerError) as exc_info:
+            tokenize(source)
+        assert "Unterminated multi-line comment" in str(exc_info.value)
+        assert exc_info.value.hint == "did you forget to close the comment with '*/'?"
+    
+    def test_multiline_comment_position_tracking(self) -> None:
+        """Lexer tracks line/column correctly after multi-line comments."""
+        source = """/**
+ * Line 2
+ * Line 3
+ */
+42"""
+        tokens = tokenize(source)
+        # The 42 should be on line 5
+        assert tokens[0].type == TokenType.INT
+        assert tokens[0].line == 5
 
 
 class TestComplexTokenization:

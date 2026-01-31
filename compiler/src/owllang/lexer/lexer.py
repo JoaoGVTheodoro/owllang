@@ -12,10 +12,11 @@ from ..ast import Token, TokenType
 class LexerError(Exception):
     """Error during lexical analysis."""
     
-    def __init__(self, message: str, line: int, column: int) -> None:
+    def __init__(self, message: str, line: int, column: int, hint: str | None = None) -> None:
         self.message = message
         self.line = line
         self.column = column
+        self.hint = hint
         super().__init__(f"Lexer error at {line}:{column}: {message}")
 
 
@@ -117,6 +118,28 @@ class Lexer:
         while not self._is_at_end() and self._peek() != '\n':
             self._advance()
     
+    def _skip_multiline_comment(self, start_line: int, start_column: int) -> None:
+        """Skip /** ... */ multi-line comments."""
+        # Skip opening /**
+        self._advance()  # /
+        self._advance()  # *
+        self._advance()  # *
+        
+        while not self._is_at_end():
+            if self._peek() == '*' and self._peek(1) == '/':
+                self._advance()  # *
+                self._advance()  # /
+                return
+            self._advance()
+        
+        # If we reach here, comment was not closed
+        raise LexerError(
+            "Unterminated multi-line comment",
+            start_line,
+            start_column,
+            hint="did you forget to close the comment with '*/'?"
+        )
+    
     def _scan_token(self) -> None:
         """Scan the next token."""
         self._skip_whitespace()
@@ -133,7 +156,12 @@ class Lexer:
             self._advance()
             return  # Skip newlines (we don't need NEWLINE tokens for MVP)
         
-        # Comments
+        # Multi-line comments (/** ... */)
+        if char == '/' and self._peek(1) == '*' and self._peek(2) == '*':
+            self._skip_multiline_comment(start_line, start_column)
+            return
+        
+        # Single-line comments (//)
         if char == '/' and self._peek(1) == '/':
             self._skip_comment()
             return
@@ -220,7 +248,12 @@ class Lexer:
         
         while not self._is_at_end() and self._peek() != '"':
             if self._peek() == '\n':
-                raise LexerError("Unterminated string", start_line, start_column)
+                raise LexerError(
+                    "Unterminated string (newline in string literal)",
+                    start_line,
+                    start_column,
+                    hint="strings cannot span multiple lines; use \\n for newlines"
+                )
             
             if self._peek() == '\\':
                 self._advance()
@@ -231,7 +264,12 @@ class Lexer:
                 value += self._advance()
         
         if self._is_at_end():
-            raise LexerError("Unterminated string", start_line, start_column)
+            raise LexerError(
+                "Unterminated string",
+                start_line,
+                start_column,
+                hint="did you forget to close the string with '\"'?"
+            )
         
         self._advance()  # Closing quote
         self._add_token(TokenType.STRING, value, start_line, start_column)

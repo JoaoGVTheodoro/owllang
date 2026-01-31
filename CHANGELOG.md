@@ -5,6 +5,25 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1-alpha] - 2026-01-31
+
+### Added
+- **Multi-line comments** with `/** ... */` syntax
+  - Can span multiple lines
+  - Can contain any characters including `//`
+  - Properly tracked line/column positions
+- **Error code E0104**: Unterminated multi-line comment with helpful hint
+
+### Improved
+- Enhanced error messages with hints for unterminated strings
+- Better diagnostic message for strings spanning multiple lines
+- 6 new tests for multi-line comment behavior
+
+### Technical
+- No semantic changes to the language
+- All 383 tests passing
+- Zero breaking changes
+
 ## [0.1.0-alpha] - 2026-01-31
 
 ### 🎉 First Alpha Release
