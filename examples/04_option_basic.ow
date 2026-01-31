@@ -1,0 +1,13 @@
+// OwlLang: Option Type
+// Demonstrates Option with Some and None
+
+fn main() {
+    // Some wraps a value
+    let found = Some(42)
+
+    // None represents absence of value
+    let missing = None
+
+    print(found)
+    print(missing)
+}

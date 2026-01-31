@@ -1,0 +1,33 @@
+// OwlLang: If Expression
+// Demonstrates if/else as typed expressions
+
+fn abs(n: Int) -> Int {
+    if n < 0 {
+        0 - n
+    } else {
+        n
+    }
+}
+
+fn sign(n: Int) -> String {
+    if n > 0 {
+        "positive"
+    } else {
+        if n < 0 {
+            "negative"
+        } else {
+            "zero"
+        }
+    }
+}
+
+fn main() {
+    let a = abs(-5)
+    let b = abs(10)
+
+    print(a)
+    print(b)
+    print(sign(-3))
+    print(sign(0))
+    print(sign(7))
+}

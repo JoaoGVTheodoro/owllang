@@ -31,7 +31,7 @@ class TestEndToEnd:
     
     def test_arithmetic_program(self, test_files_dir: Path) -> None:
         """Arithmetic program produces correct results."""
-        source = (test_files_dir / "arithmetic.owl").read_text()
+        source = (test_files_dir / "arithmetic.ow").read_text()
         python_code = compile_source(source)
         
         namespace: dict = {}
@@ -43,7 +43,7 @@ class TestEndToEnd:
     
     def test_import_math(self, test_files_dir: Path) -> None:
         """Program with math import works correctly."""
-        source = (test_files_dir / "math_test.owl").read_text()
+        source = (test_files_dir / "math_test.ow").read_text()
         python_code = compile_source(source)
         
         namespace: dict = {}
@@ -174,7 +174,8 @@ fn fib(n) {
     }
 }
 """
-        python_code = compile_source(source)
+        # Use check_types=False because this test uses untyped parameters
+        python_code = compile_source(source, check_types=False)
         
         namespace: dict = {}
         exec(python_code, namespace)

@@ -1,0 +1,23 @@
+// OwlLang: Try Operator (?) and Parameterized Types
+// Demonstrates error propagation with Result[T, E]
+
+fn parse_number(s: String) -> Result[Int, String] {
+    if s == "42" {
+        return Ok(42)
+    } else {
+        return Err("not a valid number")
+    }
+}
+
+fn double_parsed(s: String) -> Result[Int, String] {
+    let n = parse_number(s)?
+    return Ok(n * 2)
+}
+
+fn main() {
+    let result1 = double_parsed("42")
+    let result2 = double_parsed("abc")
+
+    print(result1)  // Ok(84)
+    print(result2)  // Err("not a valid number")
+}

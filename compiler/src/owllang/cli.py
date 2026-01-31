@@ -4,10 +4,11 @@ OwlLang CLI
 Command-line interface for the OwlLang compiler.
 
 Usage:
-    owllang compile <file.owl>     Compile to Python
-    owllang run <file.owl>         Compile and run
-    owllang tokens <file.owl>      Show tokens (debug)
-    owllang ast <file.owl>         Show AST (debug)
+    owllang compile <file.ow>      Compile to Python
+    owllang run <file.ow>          Compile and run
+    owllang check <file.ow>        Type check (no output)
+    owllang tokens <file.ow>       Show tokens (debug)
+    owllang ast <file.ow>          Show AST (debug)
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import __version__, compile_source, parse
+from . import __version__, compile_source, parse, CompileError
 from .lexer import LexerError, tokenize
 from .parser import ParseError
 
@@ -41,6 +42,13 @@ from .ast import (
 )
 
 
+def print_type_errors(input_file: str, errors: list) -> None:
+    """Print type errors to stderr."""
+    print(f"\033[91mType errors in {input_file}:\033[0m")
+    for error in errors:
+        print(f"  {error}")
+
+
 def main() -> int:
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -56,21 +64,25 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", help="Commands")
     
     # compile command
-    compile_parser = subparsers.add_parser("compile", help="Compile .owl to .py")
-    compile_parser.add_argument("file", help="OwlLang source file")
+    compile_parser = subparsers.add_parser("compile", help="Compile .ow to .py")
+    compile_parser.add_argument("file", help="OwlLang source file (.ow)")
     compile_parser.add_argument("-o", "--output", help="Output file (default: <file>.py)")
     
     # run command
     run_parser = subparsers.add_parser("run", help="Compile and run")
-    run_parser.add_argument("file", help="OwlLang source file")
+    run_parser.add_argument("file", help="OwlLang source file (.ow)")
+    
+    # check command (type check)
+    check_parser = subparsers.add_parser("check", help="Type check without compiling")
+    check_parser.add_argument("file", help="OwlLang source file (.ow)")
     
     # tokens command (debug)
     tokens_parser = subparsers.add_parser("tokens", help="Show tokens (debug)")
-    tokens_parser.add_argument("file", help="OwlLang source file")
+    tokens_parser.add_argument("file", help="OwlLang source file (.ow)")
     
     # ast command (debug)
     ast_parser = subparsers.add_parser("ast", help="Show AST (debug)")
-    ast_parser.add_argument("file", help="OwlLang source file")
+    ast_parser.add_argument("file", help="OwlLang source file (.ow)")
     
     args = parser.parse_args()
     
@@ -83,12 +95,17 @@ def main() -> int:
             return cmd_compile(args.file, args.output)
         elif args.command == "run":
             return cmd_run(args.file)
+        elif args.command == "check":
+            return cmd_check(args.file)
         elif args.command == "tokens":
             return cmd_tokens(args.file)
         elif args.command == "ast":
             return cmd_ast(args.file)
     except (LexerError, ParseError) as e:
         print_error(e)
+        return 1
+    except CompileError as e:
+        print_type_errors(args.file, e.errors)
         return 1
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -157,6 +174,34 @@ def cmd_run(input_file: str) -> int:
     finally:
         # Clean up temp file
         Path(temp_path).unlink(missing_ok=True)
+
+
+def cmd_check(input_file: str) -> int:
+    """Type check OwlLang file without generating output."""
+    from .typechecker import TypeChecker, TypeError as OwlTypeError
+    
+    input_path = Path(input_file)
+    
+    if not input_path.exists():
+        raise FileNotFoundError(f"File not found: {input_file}")
+    
+    # Read and parse
+    source = input_path.read_text()
+    tokens = tokenize(source)
+    ast = parse(tokens)
+    
+    # Type check
+    checker = TypeChecker()
+    errors = checker.check(ast)
+    
+    if errors:
+        print(f"\033[91mType errors in {input_file}:\033[0m")
+        for error in errors:
+            print(f"  {error}")
+        return 1
+    
+    print(f"✓ {input_file}: No type errors found")
+    return 0
 
 
 def cmd_tokens(input_file: str) -> int:

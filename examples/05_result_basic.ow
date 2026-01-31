@@ -1,0 +1,13 @@
+// OwlLang: Result Type
+// Demonstrates Result with Ok and Err
+
+fn main() {
+    // Ok wraps a success value
+    let success = Ok(100)
+
+    // Err wraps an error value
+    let failure = Err("something went wrong")
+
+    print(success)
+    print(failure)
+}

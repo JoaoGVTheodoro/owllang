@@ -19,6 +19,9 @@ from owllang.ast.nodes import (
     UnaryOp,
     Call,
     FieldAccess,
+    TryExpr,
+    # Type Annotations
+    TypeAnnotation,
     # Statements
     Stmt,
     LetStmt,
@@ -48,6 +51,9 @@ __all__ = [
     "UnaryOp",
     "Call",
     "FieldAccess",
+    "TryExpr",
+    # Type Annotations
+    "TypeAnnotation",
     # Statements
     "Stmt",
     "LetStmt",

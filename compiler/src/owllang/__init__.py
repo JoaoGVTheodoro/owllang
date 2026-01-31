@@ -46,6 +46,16 @@ from owllang.ast.nodes import (
 from owllang.lexer import Lexer, LexerError, tokenize
 from owllang.parser import ParseError, Parser, parse
 from owllang.transpiler import Transpiler, transpile
+from owllang.typechecker import TypeChecker
+
+
+class CompileError(Exception):
+    """Error raised when compilation fails due to type errors."""
+    
+    def __init__(self, errors: list):
+        self.errors = errors
+        super().__init__(f"{len(errors)} type error(s) found")
+
 
 __version__ = "0.1.0"
 __all__ = [
@@ -53,6 +63,7 @@ __all__ = [
     "__version__",
     # Main function
     "compile_source",
+    "CompileError",
     # AST nodes
     "Token",
     "TokenType",
@@ -90,12 +101,13 @@ __all__ = [
 ]
 
 
-def compile_source(source: str) -> str:
+def compile_source(source: str, check_types: bool = True) -> str:
     """
     Compile OwlLang source code to Python.
 
     Args:
         source: OwlLang source code string
+        check_types: Whether to run the type checker (default: True)
 
     Returns:
         Generated Python source code
@@ -103,6 +115,7 @@ def compile_source(source: str) -> str:
     Raises:
         LexerError: If tokenization fails
         ParseError: If parsing fails
+        CompileError: If type checking fails
 
     Example:
         >>> code = compile_source('let x = 42')
@@ -110,5 +123,12 @@ def compile_source(source: str) -> str:
     """
     tokens = tokenize(source)
     ast = parse(tokens)
+    
+    if check_types:
+        checker = TypeChecker()
+        errors = checker.check(ast)
+        if errors:
+            raise CompileError(errors)
+    
     python_code = transpile(ast)
     return python_code

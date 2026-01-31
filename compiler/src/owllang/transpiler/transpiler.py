@@ -9,7 +9,7 @@ from __future__ import annotations
 from ..ast import (
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
-    Identifier, BinaryOp, UnaryOp, Call, FieldAccess,
+    Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
     # Statements
     Stmt, LetStmt, ExprStmt, ReturnStmt, IfStmt,
     # Declarations
@@ -29,10 +29,17 @@ class Transpiler:
     def __init__(self) -> None:
         self.indent_level = 0
         self.indent_str = "    "  # 4 spaces
+        self._try_counter = 0  # Counter for unique try expression variables
     
     def transpile(self, program: Program) -> str:
         """Transpile entire program to Python."""
         lines: list[str] = []
+        
+        # Check if we need the Result runtime (if any function uses Ok, Err, or ?)
+        needs_result_runtime = self._program_uses_result(program)
+        if needs_result_runtime:
+            lines.extend(self._generate_result_runtime())
+            lines.append("")
         
         # Generate imports
         for imp in program.imports:
@@ -58,6 +65,75 @@ class Transpiler:
             lines.append(f"{self.indent_str}main()")
         
         return "\n".join(lines)
+    
+    def _program_uses_result(self, program: Program) -> bool:
+        """Check if the program uses Result types (TryExpr, Ok, or Err)."""
+        for fn in program.functions:
+            for stmt in fn.body:
+                if self._stmt_has_result(stmt):
+                    return True
+        for stmt in program.statements:
+            if self._stmt_has_result(stmt):
+                return True
+        return False
+    
+    def _stmt_has_result(self, stmt: Stmt) -> bool:
+        """Check if a statement contains Result usage."""
+        if isinstance(stmt, LetStmt):
+            return self._expr_has_result(stmt.value)
+        elif isinstance(stmt, ExprStmt):
+            return self._expr_has_result(stmt.expr)
+        elif isinstance(stmt, ReturnStmt):
+            return stmt.value is not None and self._expr_has_result(stmt.value)
+        elif isinstance(stmt, IfStmt):
+            if self._expr_has_result(stmt.condition):
+                return True
+            for s in stmt.then_body:
+                if self._stmt_has_result(s):
+                    return True
+            if stmt.else_body:
+                for s in stmt.else_body:
+                    if self._stmt_has_result(s):
+                        return True
+        return False
+    
+    def _expr_has_result(self, expr: Expr) -> bool:
+        """Check if an expression contains Result usage (TryExpr, Ok, Err)."""
+        if isinstance(expr, TryExpr):
+            return True
+        elif isinstance(expr, Call):
+            # Check for Ok(...) or Err(...) calls
+            if isinstance(expr.callee, Identifier) and expr.callee.name in ("Ok", "Err"):
+                return True
+            if self._expr_has_result(expr.callee):
+                return True
+            for arg in expr.arguments:
+                if self._expr_has_result(arg):
+                    return True
+        elif isinstance(expr, BinaryOp):
+            return self._expr_has_result(expr.left) or self._expr_has_result(expr.right)
+        elif isinstance(expr, UnaryOp):
+            return self._expr_has_result(expr.operand)
+        elif isinstance(expr, FieldAccess):
+            return self._expr_has_result(expr.object)
+        return False
+    
+    def _generate_result_runtime(self) -> list[str]:
+        """Generate the Ok/Err runtime classes for Result type support."""
+        return [
+            "# Result type runtime",
+            "class Ok:",
+            "    def __init__(self, value):",
+            "        self.value = value",
+            "    def __repr__(self):",
+            "        return f\"Ok({self.value!r})\"",
+            "",
+            "class Err:",
+            "    def __init__(self, error):",
+            "        self.error = error",
+            "    def __repr__(self):",
+            "        return f\"Err({self.error!r})\"",
+        ]
     
     # =========================================================================
     # Import Transpilation
@@ -124,20 +200,106 @@ class Transpiler:
             raise ValueError(f"Unknown statement type: {type(stmt)}")
     
     def _transpile_let(self, stmt: LetStmt) -> str:
-        """Transpile: let x = value → x = value"""
+        """Transpile: let x = value → x = value
+        
+        Special handling for try expressions (?) to enable early return.
+        """
+        # Check if value contains TryExpr and handle specially
+        if isinstance(stmt.value, TryExpr):
+            return self._transpile_let_with_try(stmt.name, stmt.value)
+        
         value = self._transpile_expr(stmt.value)
         return self._indent(f"{stmt.name} = {value}")
     
+    def _transpile_let_with_try(self, var_name: str, try_expr: TryExpr) -> str:
+        """
+        Transpile: let x = expr? 
+        
+        Generates:
+            __try_N = expr
+            if isinstance(__try_N, Err):
+                return __try_N
+            x = __try_N.value
+        """
+        lines: list[str] = []
+        tmp_var = f"__try_{self._try_counter}"
+        self._try_counter += 1
+        
+        operand = self._transpile_expr(try_expr.operand)
+        
+        lines.append(self._indent(f"{tmp_var} = {operand}"))
+        lines.append(self._indent(f"if isinstance({tmp_var}, Err):"))
+        self.indent_level += 1
+        lines.append(self._indent(f"return {tmp_var}"))
+        self.indent_level -= 1
+        lines.append(self._indent(f"{var_name} = {tmp_var}.value"))
+        
+        return "\n".join(lines)
+    
     def _transpile_expr_stmt(self, stmt: ExprStmt) -> str:
         """Transpile expression statement."""
+        # Handle try expression in statement position
+        if isinstance(stmt.expr, TryExpr):
+            return self._transpile_try_stmt(stmt.expr)
         return self._indent(self._transpile_expr(stmt.expr))
+    
+    def _transpile_try_stmt(self, try_expr: TryExpr) -> str:
+        """
+        Transpile a try expression in statement position (result discarded).
+        
+        Generates:
+            __try_N = expr
+            if isinstance(__try_N, Err):
+                return __try_N
+        """
+        lines: list[str] = []
+        tmp_var = f"__try_{self._try_counter}"
+        self._try_counter += 1
+        
+        operand = self._transpile_expr(try_expr.operand)
+        
+        lines.append(self._indent(f"{tmp_var} = {operand}"))
+        lines.append(self._indent(f"if isinstance({tmp_var}, Err):"))
+        self.indent_level += 1
+        lines.append(self._indent(f"return {tmp_var}"))
+        self.indent_level -= 1
+        
+        return "\n".join(lines)
     
     def _transpile_return(self, stmt: ReturnStmt) -> str:
         """Transpile return statement."""
         if stmt.value:
+            # Handle try expression in return
+            if isinstance(stmt.value, TryExpr):
+                return self._transpile_return_with_try(stmt.value)
             value = self._transpile_expr(stmt.value)
             return self._indent(f"return {value}")
         return self._indent("return")
+    
+    def _transpile_return_with_try(self, try_expr: TryExpr) -> str:
+        """
+        Transpile: return expr?
+        
+        Generates:
+            __try_N = expr
+            if isinstance(__try_N, Err):
+                return __try_N
+            return __try_N.value
+        """
+        lines: list[str] = []
+        tmp_var = f"__try_{self._try_counter}"
+        self._try_counter += 1
+        
+        operand = self._transpile_expr(try_expr.operand)
+        
+        lines.append(self._indent(f"{tmp_var} = {operand}"))
+        lines.append(self._indent(f"if isinstance({tmp_var}, Err):"))
+        self.indent_level += 1
+        lines.append(self._indent(f"return {tmp_var}"))
+        self.indent_level -= 1
+        lines.append(self._indent(f"return {tmp_var}.value"))
+        
+        return "\n".join(lines)
     
     def _transpile_if(self, stmt: IfStmt) -> str:
         """Transpile if statement."""
@@ -203,6 +365,17 @@ class Transpiler:
         elif isinstance(expr, FieldAccess):
             obj = self._transpile_expr(expr.object)
             return f"{obj}.{expr.field}"
+        
+        elif isinstance(expr, TryExpr):
+            # For try expressions used within other expressions (e.g., foo()? + bar()),
+            # we generate a simple value extraction. The early-return semantics
+            # are handled at the statement level for let/return/expr statements.
+            # 
+            # For nested try expressions in complex expressions, this provides
+            # the value extraction, but won't do early return. The type checker
+            # ensures this is only used with Result types.
+            operand = self._transpile_expr(expr.operand)
+            return f"({operand}).value"
         
         else:
             raise ValueError(f"Unknown expression type: {type(expr)}")

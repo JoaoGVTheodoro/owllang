@@ -1,0 +1,6 @@
+// OwlLang: Hello World
+// Demonstrates the basic structure of an OwlLang program
+
+fn main() {
+    print("Hello, World! 🦉")
+}

@@ -1,0 +1,17 @@
+// OwlLang: Type Errors (intentionally invalid)
+// Run with: owl check examples/06_type_errors.ow
+// This file demonstrates type errors caught by the type checker
+
+fn main() {
+    // ERROR: Type mismatch - assigning String to Int
+    let x: Int = "hello"
+
+    // ERROR: Type mismatch - returning String from Int function
+    let y = wrong_return()
+
+    print(x)
+}
+
+fn wrong_return() -> Int {
+    "not an int"
+}

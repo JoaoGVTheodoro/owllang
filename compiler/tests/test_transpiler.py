@@ -8,6 +8,11 @@ from owllang import tokenize, parse, transpile, compile_source
 from owllang.transpiler import Transpiler
 
 
+def compile_no_check(source: str) -> str:
+    """Compile source without type checking (for transpiler tests)."""
+    return compile_source(source, check_types=False)
+
+
 class TestCompileSource:
     """Test the high-level compile_source function."""
     
@@ -195,23 +200,23 @@ class TestExpressionTranspilation:
     def test_function_call_multiple_args(self) -> None:
         """Transpiler handles function call with multiple args."""
         source = "add(1, 2, 3)"
-        result = compile_source(source)
+        result = compile_no_check(source)
         assert "add(1, 2, 3)" in result
     
     def test_nested_call(self, nested_call_source: str) -> None:
         """Transpiler handles nested function calls."""
-        result = compile_source(nested_call_source)
+        result = compile_no_check(nested_call_source)
         assert "print(add(1, mul(2, 3)))" in result
     
     def test_field_access(self, field_access_source: str) -> None:
         """Transpiler handles field access."""
-        result = compile_source(field_access_source)
+        result = compile_no_check(field_access_source)
         assert "math.pi" in result
     
     def test_method_call(self) -> None:
         """Transpiler handles method call."""
         source = 'let upper = msg.upper()'
-        result = compile_source(source)
+        result = compile_no_check(source)
         assert "msg.upper()" in result
 
 
@@ -381,3 +386,118 @@ fn check(x) {
         exec(result, namespace)
         assert namespace["check"](5) is True
         assert namespace["check"](-5) is False
+
+
+class TestTryOperatorTranspilation:
+    """Test transpilation of the ? operator."""
+    
+    def test_try_in_let_generates_early_return(self) -> None:
+        """let x = foo()? should generate early return pattern."""
+        source = """
+fn process() {
+    let x = get_value()?
+    x
+}
+"""
+        result = compile_no_check(source)
+        
+        # Should contain the early return pattern
+        assert "__try_" in result
+        assert "isinstance" in result
+        assert "Err" in result
+        assert "return" in result
+        assert ".value" in result
+    
+    def test_try_in_return_generates_early_return(self) -> None:
+        """return foo()? should generate early return pattern."""
+        source = """
+fn process() {
+    return get_value()?
+}
+"""
+        result = compile_no_check(source)
+        
+        assert "__try_" in result
+        assert "isinstance" in result
+        assert "Err" in result
+    
+    def test_try_generates_result_runtime(self) -> None:
+        """Using ? should generate Ok/Err runtime classes."""
+        source = """
+fn process() {
+    let x = get_value()?
+    x
+}
+"""
+        result = compile_no_check(source)
+        
+        # Should contain the runtime classes
+        assert "class Ok:" in result
+        assert "class Err:" in result
+    
+    def test_try_executable_with_ok(self) -> None:
+        """Generated try code should work with Ok values."""
+        source = """
+fn test_ok() {
+    let x = Ok(42)?
+    return x
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        # The function should return 42 when given Ok(42)
+        assert namespace["test_ok"]() == 42
+    
+    def test_try_executable_with_err(self) -> None:
+        """Generated try code should return early with Err values."""
+        source = """
+fn make_err() {
+    return Err("oops")
+}
+
+fn test_err() {
+    let x = make_err()?
+    return x + 100
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        # The function should return the Err, not x + 100
+        result_value = namespace["test_err"]()
+        assert isinstance(result_value, namespace["Err"])
+        assert result_value.error == "oops"
+    
+    def test_chained_try_transpilation(self) -> None:
+        """Chained ? operators should work correctly."""
+        source = """
+fn process() {
+    let a = Ok(10)?
+    let b = Ok(20)?
+    return a + b
+}
+"""
+        result = compile_no_check(source)
+        
+        namespace: dict = {}
+        exec(result, namespace)
+        
+        assert namespace["process"]() == 30
+    
+    def test_no_runtime_when_not_needed(self) -> None:
+        """Programs without ? should not include runtime."""
+        source = """
+fn add(a, b) {
+    a + b
+}
+"""
+        result = compile_no_check(source)
+        
+        # Should NOT contain the runtime classes
+        assert "class Ok:" not in result
+        assert "class Err:" not in result

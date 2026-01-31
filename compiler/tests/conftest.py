@@ -173,16 +173,16 @@ def float_source() -> str:
 
 @pytest.fixture
 def test_files_dir(tmp_path: Path) -> Path:
-    """Create a temporary directory with test .owl files."""
-    # hello.owl
-    (tmp_path / "hello.owl").write_text('''
+    """Create a temporary directory with test .ow files."""
+    # hello.ow
+    (tmp_path / "hello.ow").write_text('''
 fn main() {
     print("Hello, World!")
 }
 ''')
     
-    # math_test.owl
-    (tmp_path / "math_test.owl").write_text('''
+    # math_test.ow
+    (tmp_path / "math_test.ow").write_text('''
 from python import math
 
 fn main() {
@@ -191,8 +191,8 @@ fn main() {
 }
 ''')
     
-    # arithmetic.owl
-    (tmp_path / "arithmetic.owl").write_text('''
+    # arithmetic.ow
+    (tmp_path / "arithmetic.ow").write_text('''
 let a = 10
 let b = 20
 let c = a + b
@@ -204,8 +204,8 @@ print(c)
 
 @pytest.fixture
 def hello_owl_file(tmp_path: Path) -> Path:
-    """Create a hello world .owl file."""
-    owl_file = tmp_path / "hello.owl"
+    """Create a hello world .ow file."""
+    owl_file = tmp_path / "hello.ow"
     owl_file.write_text('''
 fn main() {
     print("Hello from OwlLang!")

@@ -11,7 +11,9 @@ from ..ast import (
     Token, TokenType,
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
-    Identifier, BinaryOp, UnaryOp, Call, FieldAccess,
+    Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    # Type Annotations
+    TypeAnnotation,
     # Statements
     Stmt, LetStmt, ExprStmt, ReturnStmt, IfStmt,
     # Declarations
@@ -175,12 +177,35 @@ class Parser:
         # Optional return type: -> Type
         return_type = None
         if self._match(TokenType.ARROW):
-            type_token = self._expect(TokenType.IDENT, "Expected return type")
-            return_type = type_token.value
+            return_type = self._parse_type_annotation()
         
         body = self._parse_block()
         
         return FnDecl(name_token.value, params, body, return_type)
+    
+    def _parse_type_annotation(self) -> TypeAnnotation:
+        """
+        Parse a type annotation: Int, String, Option[Int], Result[Int, String]
+        
+        Grammar:
+            type_annotation := IDENT ('[' type_annotation (',' type_annotation)* ']')?
+        """
+        name_token = self._expect(TokenType.IDENT, "Expected type name")
+        name = name_token.value
+        params: list[TypeAnnotation] = []
+        
+        # Check for parameterized type: Type[...]
+        if self._match(TokenType.LBRACKET):
+            # Parse first type parameter
+            params.append(self._parse_type_annotation())
+            
+            # Parse additional type parameters
+            while self._match(TokenType.COMMA):
+                params.append(self._parse_type_annotation())
+            
+            self._expect(TokenType.RBRACKET, "Expected ']' after type parameters")
+        
+        return TypeAnnotation(name, params)
     
     def _parse_params(self) -> list[Parameter]:
         """Parse function parameters: a, b, c"""
@@ -195,8 +220,7 @@ class Parser:
             # Optional type annotation: : Type
             type_annotation = None
             if self._match(TokenType.COLON):
-                type_token = self._expect(TokenType.IDENT, "Expected type")
-                type_annotation = type_token.value
+                type_annotation = self._parse_type_annotation()
             
             params.append(Parameter(name_token.value, type_annotation))
             
@@ -239,8 +263,7 @@ class Parser:
         # Optional type annotation
         type_annotation = None
         if self._match(TokenType.COLON):
-            type_token = self._expect(TokenType.IDENT, "Expected type")
-            type_annotation = type_token.value
+            type_annotation = self._parse_type_annotation()
         
         self._expect(TokenType.ASSIGN, "Expected '=' after variable name")
         value = self._parse_expr()
@@ -335,7 +358,7 @@ class Parser:
         return self._parse_call()
     
     def _parse_call(self) -> Expr:
-        """Parse: primary ("(" arguments ")" | "." IDENT)*"""
+        """Parse: primary ("(" arguments ")" | "." IDENT | "?")*"""
         expr = self._parse_primary()
         
         while True:
@@ -348,6 +371,9 @@ class Parser:
                 # Field access
                 field_token = self._expect(TokenType.IDENT, "Expected field name after '.'")
                 expr = FieldAccess(expr, field_token.value)
+            elif question_tok := self._match(TokenType.QUESTION):
+                # Try operator (?)
+                expr = TryExpr(expr, span=question_tok.span())
             else:
                 break
         

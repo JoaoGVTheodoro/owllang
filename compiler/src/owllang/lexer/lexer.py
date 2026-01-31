@@ -54,9 +54,12 @@ class Lexer:
         ')': TokenType.RPAREN,
         '{': TokenType.LBRACE,
         '}': TokenType.RBRACE,
+        '[': TokenType.LBRACKET,
+        ']': TokenType.RBRACKET,
         ',': TokenType.COMMA,
         ':': TokenType.COLON,
         '.': TokenType.DOT,
+        '?': TokenType.QUESTION,
     }
     
     def __init__(self, source: str) -> None:

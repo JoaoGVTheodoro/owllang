@@ -24,6 +24,8 @@ from owllang.ast import (
     UnaryOp,
     Call,
     FieldAccess,
+    TryExpr,
+    TypeAnnotation,
 )
 from owllang.parser import Parser, ParseError
 
@@ -132,7 +134,7 @@ class TestFunctionParsing:
         program = parse(tokens)
         
         fn = program.functions[0]
-        assert fn.return_type == "int"
+        assert fn.return_type == TypeAnnotation("int")
     
     def test_function_param_with_type(self) -> None:
         """Parser handles parameter with type annotation."""
@@ -142,7 +144,7 @@ class TestFunctionParsing:
         
         fn = program.functions[0]
         assert fn.params[0].name == "name"
-        assert fn.params[0].type_annotation == "str"
+        assert fn.params[0].type_annotation == TypeAnnotation("str")
 
 
 class TestStatementParsing:
@@ -167,7 +169,7 @@ class TestStatementParsing:
         
         stmt = program.statements[0]
         assert isinstance(stmt, LetStmt)
-        assert stmt.type_annotation == "int"
+        assert stmt.type_annotation == TypeAnnotation("int")
     
     def test_return_statement(self) -> None:
         """Parser handles return statement."""
@@ -426,3 +428,174 @@ class TestParserClass:
         
         assert isinstance(program, Program)
         assert len(program.statements) == 1
+
+
+class TestTryExpression:
+    """Test try operator (?) parsing."""
+    
+    def test_simple_try_expression(self) -> None:
+        """Parser handles simple try expression: foo()?"""
+        tokens = tokenize("foo()?")
+        program = parse(tokens)
+        
+        assert len(program.statements) == 1
+        stmt = program.statements[0]
+        assert isinstance(stmt, ExprStmt)
+        assert isinstance(stmt.expr, TryExpr)
+        assert isinstance(stmt.expr.operand, Call)
+    
+    def test_try_on_identifier(self) -> None:
+        """Parser handles try on identifier: x?"""
+        tokens = tokenize("x?")
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, ExprStmt)
+        assert isinstance(stmt.expr, TryExpr)
+        assert isinstance(stmt.expr.operand, Identifier)
+        assert stmt.expr.operand.name == "x"
+    
+    def test_try_in_let_statement(self) -> None:
+        """Parser handles try in let: let x = foo()?"""
+        tokens = tokenize("let x = foo()?")
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStmt)
+        assert isinstance(stmt.value, TryExpr)
+        assert isinstance(stmt.value.operand, Call)
+    
+    def test_try_in_return_statement(self) -> None:
+        """Parser handles try in return: return foo()?"""
+        source = """
+fn test() {
+    return foo()?
+}
+"""
+        tokens = tokenize(source)
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        ret_stmt = fn.body[0]
+        assert isinstance(ret_stmt, ReturnStmt)
+        assert isinstance(ret_stmt.value, TryExpr)
+    
+    def test_chained_try_expressions(self) -> None:
+        """Parser handles chained try: foo()?.bar()?"""
+        tokens = tokenize("foo()?.bar()?")
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, ExprStmt)
+        # The outer expression is TryExpr
+        assert isinstance(stmt.expr, TryExpr)
+        # Its operand is a Call (bar())
+        assert isinstance(stmt.expr.operand, Call)
+        # The callee of bar() is FieldAccess
+        assert isinstance(stmt.expr.operand.callee, FieldAccess)
+        # The object of FieldAccess is TryExpr (foo()?)
+        assert isinstance(stmt.expr.operand.callee.object, TryExpr)
+    
+    def test_try_with_method_call(self) -> None:
+        """Parser handles try on method call: obj.method()?"""
+        tokens = tokenize("obj.method()?")
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, ExprStmt)
+        assert isinstance(stmt.expr, TryExpr)
+        assert isinstance(stmt.expr.operand, Call)
+    
+    def test_try_precedence_with_binary_op(self) -> None:
+        """Try has higher precedence than binary operators."""
+        tokens = tokenize("foo()? + bar()?")
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, ExprStmt)
+        assert isinstance(stmt.expr, BinaryOp)
+        assert stmt.expr.operator == "+"
+        # Both operands are TryExpr
+        assert isinstance(stmt.expr.left, TryExpr)
+        assert isinstance(stmt.expr.right, TryExpr)
+
+
+class TestParameterizedTypes:
+    """Test parsing of parameterized type annotations."""
+    
+    def test_simple_type_annotation(self) -> None:
+        """Parser handles simple type: Int, String."""
+        tokens = tokenize("fn f() -> Int { return 1 }")
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        assert fn.return_type == TypeAnnotation("Int")
+        assert fn.return_type.params == []
+    
+    def test_option_type_annotation(self) -> None:
+        """Parser handles Option[T] type."""
+        tokens = tokenize("fn f() -> Option[Int] { return None }")
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        assert fn.return_type.name == "Option"
+        assert len(fn.return_type.params) == 1
+        assert fn.return_type.params[0] == TypeAnnotation("Int")
+    
+    def test_result_type_annotation(self) -> None:
+        """Parser handles Result[T, E] type."""
+        tokens = tokenize("fn f() -> Result[Int, String] { return Ok(1) }")
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        assert fn.return_type.name == "Result"
+        assert len(fn.return_type.params) == 2
+        assert fn.return_type.params[0] == TypeAnnotation("Int")
+        assert fn.return_type.params[1] == TypeAnnotation("String")
+    
+    def test_nested_parameterized_type(self) -> None:
+        """Parser handles nested types: Result[Option[Int], String]."""
+        tokens = tokenize("fn f() -> Result[Option[Int], String] { return Ok(None) }")
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        assert fn.return_type.name == "Result"
+        assert fn.return_type.params[0].name == "Option"
+        assert fn.return_type.params[0].params[0] == TypeAnnotation("Int")
+        assert fn.return_type.params[1] == TypeAnnotation("String")
+    
+    def test_param_with_parameterized_type(self) -> None:
+        """Parser handles parameter with parameterized type."""
+        tokens = tokenize("fn f(x: Option[Int]) { print(x) }")
+        program = parse(tokens)
+        
+        fn = program.functions[0]
+        assert fn.params[0].type_annotation.name == "Option"
+        assert fn.params[0].type_annotation.params[0] == TypeAnnotation("Int")
+    
+    def test_let_with_parameterized_type(self) -> None:
+        """Parser handles let with parameterized type annotation."""
+        tokens = tokenize("let x: Result[Int, String] = Ok(42)")
+        program = parse(tokens)
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStmt)
+        assert stmt.type_annotation.name == "Result"
+        assert len(stmt.type_annotation.params) == 2
+    
+    def test_type_annotation_to_string(self) -> None:
+        """TypeAnnotation.to_string() produces correct output."""
+        simple = TypeAnnotation("Int")
+        assert simple.to_string() == "Int"
+        
+        option = TypeAnnotation("Option", [TypeAnnotation("Int")])
+        assert option.to_string() == "Option[Int]"
+        
+        result = TypeAnnotation("Result", [TypeAnnotation("Int"), TypeAnnotation("String")])
+        assert result.to_string() == "Result[Int, String]"
+        
+        nested = TypeAnnotation("Result", [
+            TypeAnnotation("Option", [TypeAnnotation("Int")]),
+            TypeAnnotation("String")
+        ])
+        assert nested.to_string() == "Result[Option[Int], String]"

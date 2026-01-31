@@ -1,0 +1,24 @@
+// OwlLang: Functions
+// Demonstrates functions with parameters and implicit return
+
+fn add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+fn greet(name: String) -> String {
+    "Hello, " + name + "!"
+}
+
+fn is_positive(n: Int) -> Bool {
+    n > 0
+}
+
+fn main() {
+    let sum = add(10, 20)
+    let greeting = greet("Owl")
+    let positive = is_positive(42)
+
+    print(sum)
+    print(greeting)
+    print(positive)
+}
