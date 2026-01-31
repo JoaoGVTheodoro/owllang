@@ -35,6 +35,9 @@ from .warning import (
     unused_variable_warning,
     unused_parameter_warning,
     unreachable_code_warning,
+    result_ignored_warning,
+    option_ignored_warning,
+    constant_condition_warning,
 )
 from .printer import DiagnosticPrinter, print_diagnostics
 

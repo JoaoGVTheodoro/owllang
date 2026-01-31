@@ -44,7 +44,8 @@ from ..diagnostics import (
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
-    unreachable_code_warning,
+    unreachable_code_warning, result_ignored_warning, option_ignored_warning,
+    constant_condition_warning,
 )
 
 if TYPE_CHECKING:
@@ -328,6 +329,7 @@ class TypeChecker:
         last_stmt_type: OwlType = VOID
         has_explicit_return = False
         found_return_at: int | None = None  # Track position of first return
+        is_last_stmt = lambda idx: idx == len(fn.body) - 1
         
         for i, stmt in enumerate(fn.body):
             # Check for unreachable code (code after return)
@@ -339,6 +341,15 @@ class TypeChecker:
             if isinstance(stmt, ExprStmt):
                 # Track the type of the last expression (for implicit return)
                 last_stmt_type = self._check_expr(stmt.expr)
+                # Warn if Result or Option value is ignored
+                # But NOT if this is the last statement used as implicit return
+                is_implicit_return = (
+                    is_last_stmt(i) and 
+                    self.current_function_return_type and 
+                    self.current_function_return_type != VOID
+                )
+                if not is_implicit_return:
+                    self._check_ignored_value(last_stmt_type, stmt.expr)
             elif isinstance(stmt, ReturnStmt):
                 self._check_stmt(stmt)
                 has_explicit_return = True
@@ -430,10 +441,30 @@ class TypeChecker:
             self._check_let(stmt)
         elif isinstance(stmt, ExprStmt):
             self._check_expr(stmt.expr)
+            # Note: _check_ignored_value is called in _check_function loop
+            # to avoid warning for implicit returns
         elif isinstance(stmt, ReturnStmt):
             self._check_return(stmt)
         elif isinstance(stmt, IfStmt):
             self._check_if(stmt)
+    
+    def _check_ignored_value(self, expr_type: OwlType, expr: Expr) -> None:
+        """Check if a Result or Option value is being ignored and warn."""
+        span = self._get_expr_span(expr)
+        if isinstance(expr_type, ResultType):
+            self.warnings.append(result_ignored_warning(span))
+        elif isinstance(expr_type, OptionType):
+            self.warnings.append(option_ignored_warning(span))
+    
+    def _get_expr_span(self, expr: Expr) -> Span:
+        """Get span for an expression, falling back to DUMMY_SPAN if not available."""
+        # Try to get span from common expression types
+        if hasattr(expr, 'line') and hasattr(expr, 'column'):
+            return Span.single(expr.line, expr.column)
+        if isinstance(expr, Call) and hasattr(expr.callee, 'name'):
+            if hasattr(expr.callee, 'line'):
+                return Span.single(expr.callee.line, expr.callee.column)
+        return DUMMY_SPAN
     
     def _check_let(self, stmt: LetStmt) -> None:
         """Check let statement."""
@@ -469,6 +500,9 @@ class TypeChecker:
         """Check if statement."""
         cond_type = self._check_expr(stmt.condition)
         
+        # Check for constant condition (if true / if false)
+        self._check_constant_condition(stmt.condition)
+        
         # Condition should be Bool (or compatible)
         if cond_type not in (BOOL, ANY, UNKNOWN):
             self._error(
@@ -485,6 +519,12 @@ class TypeChecker:
             for s in stmt.else_body:
                 self._check_stmt(s)
     
+    def _check_constant_condition(self, condition: Expr) -> None:
+        """Check if a condition is a constant boolean literal and warn."""
+        if isinstance(condition, BoolLiteral):
+            span = self._get_expr_span(condition)
+            self.warnings.append(constant_condition_warning(condition.value, span))
+    
     def _check_if_expr(self, stmt: IfStmt) -> OwlType:
         """
         Check if/else as an expression and return its type.
@@ -492,6 +532,9 @@ class TypeChecker:
         If no else, returns Void.
         """
         cond_type = self._check_expr(stmt.condition)
+        
+        # Check for constant condition (if true / if false)
+        self._check_constant_condition(stmt.condition)
         
         # Condition should be Bool
         if cond_type not in (BOOL, ANY, UNKNOWN):

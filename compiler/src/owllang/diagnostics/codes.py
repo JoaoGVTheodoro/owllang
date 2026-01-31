@@ -87,6 +87,9 @@ class WarningCode(Enum):
     REDUNDANT_MATCH = "W0301"  # match on single case
     TRIVIAL_IF = "W0302"  # if true { x } else { y }
     UNNECESSARY_ELSE = "W0303"  # else after return
+    RESULT_IGNORED = "W0304"  # Result value not used
+    OPTION_IGNORED = "W0305"  # Option value not unwrapped
+    CONSTANT_CONDITION = "W0306"  # if true or if false
     
     # Shadowing warnings (W04xx)
     VARIABLE_SHADOWS = "W0401"  # legal but possibly confusing

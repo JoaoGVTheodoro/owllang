@@ -5,6 +5,28 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2-alpha] - 2026-01-31
+
+### Added
+- **Warning W0304**: Result value is ignored
+  - Warns when calling a function that returns `Result[T, E]` without handling the result
+  - Suggests using `let _ = ...` to explicitly ignore or handling with match/`?` operator
+- **Warning W0305**: Option value is ignored
+  - Warns when calling a function that returns `Option[T]` without handling the value
+  - Suggests using `let _ = ...` to explicitly ignore or handling with match
+- **Warning W0306**: Constant condition detected
+  - Warns when using `if true { ... }` or `if false { ... }`
+  - Helps identify unreachable code or debugging leftovers
+
+### Improved
+- Better detection of ignored values in expression statements
+- Implicit returns are correctly excluded from ignored value warnings
+
+### Technical
+- 6 new tests for static analysis warnings
+- All 389 tests passing
+- Zero breaking changes
+
 ## [0.1.1-alpha] - 2026-01-31
 
 ### Added

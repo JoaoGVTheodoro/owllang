@@ -388,3 +388,222 @@ class TestDeadCode:
         
         unreachable_warnings = [w for w in warnings if w.code == WarningCode.UNREACHABLE_CODE]
         assert len(unreachable_warnings) == 0
+
+
+class TestResultIgnored:
+    """Tests for Result ignored warnings."""
+    
+    def test_result_ignored_in_expression_statement(self) -> None:
+        """Calling function returning Result without using it should warn."""
+        from owllang.ast import BoolLiteral
+        
+        # fn returns_result() -> Result[Int, String] {
+        #     Ok(1)
+        # }
+        # fn main() {
+        #     returns_result()  // Result ignored!
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="returns_result",
+                    params=[],
+                    return_type=T("Result", [T("Int"), T("String")]),
+                    body=[
+                        ExprStmt(Call(Identifier("Ok"), [IntLiteral(1)])),
+                    ]
+                ),
+                FnDecl(
+                    name="main",
+                    params=[],
+                    return_type=None,
+                    body=[
+                        ExprStmt(Call(Identifier("returns_result"), [])),
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        checker.check(program)
+        warnings = checker.get_warnings()
+        
+        result_warnings = [w for w in warnings if w.code == WarningCode.RESULT_IGNORED]
+        assert len(result_warnings) == 1
+        assert "Result value is ignored" in result_warnings[0].message
+    
+    def test_result_assigned_no_warning(self) -> None:
+        """Assigning Result to variable should not warn."""
+        # fn returns_result() -> Result[Int, String] { Ok(1) }
+        # fn main() {
+        #     let r = returns_result()  // No warning - value is used
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="returns_result",
+                    params=[],
+                    return_type=T("Result", [T("Int"), T("String")]),
+                    body=[
+                        ExprStmt(Call(Identifier("Ok"), [IntLiteral(1)])),
+                    ]
+                ),
+                FnDecl(
+                    name="main",
+                    params=[],
+                    return_type=None,
+                    body=[
+                        LetStmt("r", Call(Identifier("returns_result"), [])),
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        checker.check(program)
+        warnings = checker.get_warnings()
+        
+        result_warnings = [w for w in warnings if w.code == WarningCode.RESULT_IGNORED]
+        assert len(result_warnings) == 0
+
+
+class TestOptionIgnored:
+    """Tests for Option ignored warnings."""
+    
+    def test_option_ignored_in_expression_statement(self) -> None:
+        """Calling function returning Option without using it should warn."""
+        # fn returns_option() -> Option[Int] { Some(1) }
+        # fn main() {
+        #     returns_option()  // Option ignored!
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="returns_option",
+                    params=[],
+                    return_type=T("Option", [T("Int")]),
+                    body=[
+                        ExprStmt(Call(Identifier("Some"), [IntLiteral(1)])),
+                    ]
+                ),
+                FnDecl(
+                    name="main",
+                    params=[],
+                    return_type=None,
+                    body=[
+                        ExprStmt(Call(Identifier("returns_option"), [])),
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        checker.check(program)
+        warnings = checker.get_warnings()
+        
+        option_warnings = [w for w in warnings if w.code == WarningCode.OPTION_IGNORED]
+        assert len(option_warnings) == 1
+        assert "Option value is ignored" in option_warnings[0].message
+
+
+class TestConstantCondition:
+    """Tests for constant condition warnings."""
+    
+    def test_if_true_warns(self) -> None:
+        """if true should warn about constant condition."""
+        from owllang.ast import BoolLiteral
+        
+        # fn main() {
+        #     if true { print(1) }
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="main",
+                    params=[],
+                    return_type=None,
+                    body=[
+                        IfStmt(
+                            condition=BoolLiteral(True),
+                            then_body=[ExprStmt(Call(Identifier("print"), [IntLiteral(1)]))],
+                            else_body=None
+                        )
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        checker.check(program)
+        warnings = checker.get_warnings()
+        
+        const_warnings = [w for w in warnings if w.code == WarningCode.CONSTANT_CONDITION]
+        assert len(const_warnings) == 1
+        assert "always `true`" in const_warnings[0].message
+    
+    def test_if_false_warns(self) -> None:
+        """if false should warn about constant condition."""
+        from owllang.ast import BoolLiteral
+        
+        # fn main() {
+        #     if false { print(1) }
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="main",
+                    params=[],
+                    return_type=None,
+                    body=[
+                        IfStmt(
+                            condition=BoolLiteral(False),
+                            then_body=[ExprStmt(Call(Identifier("print"), [IntLiteral(1)]))],
+                            else_body=None
+                        )
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        checker.check(program)
+        warnings = checker.get_warnings()
+        
+        const_warnings = [w for w in warnings if w.code == WarningCode.CONSTANT_CONDITION]
+        assert len(const_warnings) == 1
+        assert "always `false`" in const_warnings[0].message
+    
+    def test_comparison_no_warning(self) -> None:
+        """Normal comparison condition should not warn."""
+        # fn f(x: Int) {
+        #     if x > 0 { print(1) }
+        # }
+        program = Program(
+            imports=[],
+            functions=[
+                FnDecl(
+                    name="f",
+                    params=[Parameter("x", T("Int"))],
+                    return_type=None,
+                    body=[
+                        IfStmt(
+                            condition=BinaryOp(Identifier("x"), ">", IntLiteral(0)),
+                            then_body=[ExprStmt(Call(Identifier("print"), [IntLiteral(1)]))],
+                            else_body=None
+                        )
+                    ]
+                )
+            ],
+            statements=[]
+        )
+        checker = TypeChecker()
+        checker.check(program)
+        warnings = checker.get_warnings()
+        
+        const_warnings = [w for w in warnings if w.code == WarningCode.CONSTANT_CONDITION]
+        assert len(const_warnings) == 0
