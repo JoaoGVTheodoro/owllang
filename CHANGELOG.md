@@ -5,6 +5,30 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4-alpha] - 2026-01-31
+
+### Improved
+- **Semantic consistency pass**: Comprehensive validation of semantic rules across the language
+- **Diagnostic message normalization**: Type names in warnings now consistently use backticks
+  - `Result value is ignored` → `` `Result` value is ignored ``
+  - `Option value is ignored` → `` `Option` value is ignored ``
+- **Hint consistency**: All hints now use backticks for code references (e.g., `` `match`/`?` operator ``)
+
+### Added
+- **Semantic consistency tests**: 20 new tests organized in 5 categories:
+  - Expression vs Statement semantics (5 tests)
+  - Return semantics (4 tests)
+  - Scope and shadowing (5 tests)
+  - Diagnostic consistency (3 tests)
+  - Edge cases (3 tests)
+
+### Technical
+- All diagnostic messages follow consistent formatting patterns
+- Warning hints use backticks uniformly for code elements
+- 416 tests passing (added 20 semantic consistency tests)
+- Zero new features (stabilization release)
+- Zero breaking changes
+
 ## [0.1.3-alpha] - 2026-01-31
 
 ### Improved

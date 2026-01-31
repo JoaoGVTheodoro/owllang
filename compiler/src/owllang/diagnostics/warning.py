@@ -91,18 +91,18 @@ def result_ignored_warning(span: Span) -> Warning:
     """Create a warning for an ignored Result value."""
     return Warning(
         code=WarningCode.RESULT_IGNORED,
-        message="Result value is ignored",
+        message="`Result` value is ignored",
         span=span,
-    ).with_hint("use `let _ = ...` to explicitly ignore, or handle with match/? operator")
+    ).with_hint("use `let _ = ...` to explicitly ignore, or handle with `match`/`?` operator")
 
 
 def option_ignored_warning(span: Span) -> Warning:
     """Create a warning for an ignored Option value."""
     return Warning(
         code=WarningCode.OPTION_IGNORED,
-        message="Option value is ignored",
+        message="`Option` value is ignored",
         span=span,
-    ).with_hint("use `let _ = ...` to explicitly ignore, or handle with match")
+    ).with_hint("use `let _ = ...` to explicitly ignore, or handle with `match`")
 
 
 def constant_condition_warning(value: bool, span: Span) -> Warning:

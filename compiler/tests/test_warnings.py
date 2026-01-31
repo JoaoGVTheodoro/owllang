@@ -431,7 +431,7 @@ class TestResultIgnored:
         
         result_warnings = [w for w in warnings if w.code == WarningCode.RESULT_IGNORED]
         assert len(result_warnings) == 1
-        assert "Result value is ignored" in result_warnings[0].message
+        assert "`Result` value is ignored" in result_warnings[0].message
     
     def test_result_assigned_no_warning(self) -> None:
         """Assigning Result to variable should not warn."""
@@ -506,7 +506,7 @@ class TestOptionIgnored:
         
         option_warnings = [w for w in warnings if w.code == WarningCode.OPTION_IGNORED]
         assert len(option_warnings) == 1
-        assert "Option value is ignored" in option_warnings[0].message
+        assert "`Option` value is ignored" in option_warnings[0].message
 
 
 class TestConstantCondition:
