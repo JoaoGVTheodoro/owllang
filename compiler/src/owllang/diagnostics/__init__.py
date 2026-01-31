@@ -35,10 +35,6 @@ from .warning import (
     unused_variable_warning,
     unused_parameter_warning,
     unreachable_code_warning,
-    variable_shadows_warning,
-    redundant_match_warning,
-    unnecessary_else_warning,
-    variable_never_mutated_warning,
 )
 from .printer import DiagnosticPrinter, print_diagnostics
 
@@ -75,10 +71,6 @@ __all__ = [
     "unused_variable_warning",
     "unused_parameter_warning",
     "unreachable_code_warning",
-    "variable_shadows_warning",
-    "redundant_match_warning",
-    "unnecessary_else_warning",
-    "variable_never_mutated_warning",
     # Printer
     "DiagnosticPrinter",
     "print_diagnostics",

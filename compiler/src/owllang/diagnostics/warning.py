@@ -87,40 +87,9 @@ def unreachable_code_warning(span: Span) -> Warning:
     ).with_note("this code will never execute")
 
 
-def variable_shadows_warning(name: str, span: Span, original_span: Span | None = None) -> Warning:
-    """Create a warning for variable shadowing."""
-    warning = Warning(
-        code=WarningCode.VARIABLE_SHADOWS,
-        message=f"variable `{name}` shadows a variable in outer scope",
-        span=span,
-    )
-    if original_span:
-        warning.with_note(f"original variable defined at {original_span}")
-    return warning.with_hint("consider using a different name to avoid confusion")
-
-
-def redundant_match_warning(span: Span) -> Warning:
-    """Create a warning for a match with only one arm."""
-    return Warning(
-        code=WarningCode.REDUNDANT_MATCH,
-        message="match expression with single case is redundant",
-        span=span,
-    ).with_hint("consider using a simple expression instead")
-
-
-def unnecessary_else_warning(span: Span) -> Warning:
-    """Create a warning for else after return."""
-    return Warning(
-        code=WarningCode.UNNECESSARY_ELSE,
-        message="unnecessary else after return",
-        span=span,
-    ).with_hint("the else branch can be removed since the if branch returns")
-
-
-def variable_never_mutated_warning(name: str, span: Span) -> Warning:
-    """Create a warning for mutable variable that is never mutated."""
-    return Warning(
-        code=WarningCode.VARIABLE_NEVER_MUTATED,
-        message=f"variable `{name}` is declared as mutable but never mutated",
-        span=span,
-    ).with_hint("consider using `let` instead of `var`")
+# Note: The following warning factory functions are planned but not yet implemented:
+# - variable_shadows_warning: for detecting variable shadowing
+# - redundant_match_warning: for match with single case
+# - unnecessary_else_warning: for else after return
+# - variable_never_mutated_warning: for var that is never mutated
+# These are kept in WarningCode enum for future implementation.

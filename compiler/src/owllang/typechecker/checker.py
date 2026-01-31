@@ -44,7 +44,7 @@ from ..diagnostics import (
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
-    unreachable_code_warning, variable_shadows_warning,
+    unreachable_code_warning,
 )
 
 if TYPE_CHECKING:
@@ -131,14 +131,6 @@ class TypeEnv:
             info for info in self.var_info.values()
             if not info.used and not info.name.startswith('_')
         ]
-    
-    def var_exists_in_parent(self, name: str) -> Span | None:
-        """Check if variable exists in parent scope (for shadowing)."""
-        if self.parent:
-            if name in self.parent.var_info:
-                return self.parent.var_info[name].span
-            return self.parent.var_exists_in_parent(name)
-        return None
     
     def define_fn(self, name: str, param_types: list[OwlType], return_type: OwlType) -> None:
         """Define a function in current scope."""
