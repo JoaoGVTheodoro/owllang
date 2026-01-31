@@ -5,6 +5,33 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5-alpha] - 2026-01-31
+
+### Added
+- **Directory support in CLI**: `owl check examples/` now checks all `.ow` files recursively
+- **JSON output**: `owl check file.ow --json` outputs structured diagnostics for tooling integration
+- **Explicit exit codes**:
+  - `0` - Success
+  - `1` - Compilation error
+  - `2` - Warnings treated as errors (with `--deny-warnings` or `-W`)
+- **CLI UX tests**: 24 new tests covering directory support, exit codes, JSON output, and output consistency
+
+### Improved
+- **Execution UX**: 
+  - `owl compile` no longer generates output file on error
+  - `owl run` shows clear error message before aborting
+- **Output consistency**:
+  - All diagnostics (errors/warnings) go to stderr
+  - Program output and JSON go to stdout
+  - Deterministic ordering of diagnostics by file and line
+- **Compile safety**: Type check before generating output to prevent partial compilation
+
+### Technical
+- 440 tests passing (added 24 CLI UX tests)
+- New file: `tests/test_cli_ux.py` with 6 test categories
+- Zero language changes (tooling-only release)
+- Zero breaking changes
+
 ## [0.1.4-alpha] - 2026-01-31
 
 ### Improved

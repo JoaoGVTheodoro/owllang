@@ -7,17 +7,26 @@ Usage:
     owllang compile <file.ow>      Compile to Python
     owllang run <file.ow>          Compile and run
     owllang check <file.ow>        Type check (no output)
+    owllang check examples/        Check all .ow files in directory
     owllang tokens <file.ow>       Show tokens (debug)
     owllang ast <file.ow>          Show AST (debug)
+
+Exit Codes:
+    0 - Success
+    1 - Compilation error
+    2 - Warnings treated as errors (with --deny-warnings)
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import tempfile
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from . import __version__, compile_source, parse, CompileError
 from .lexer import LexerError, tokenize
@@ -42,12 +51,106 @@ from .ast import (
 )
 
 
+# =============================================================================
+# Exit Codes
+# =============================================================================
+
+EXIT_SUCCESS = 0
+EXIT_ERROR = 1
+EXIT_WARNING_AS_ERROR = 2
+
+
+# =============================================================================
+# Structured Output
+# =============================================================================
+
+@dataclass
+class DiagnosticOutput:
+    """Structured diagnostic for JSON output."""
+    severity: str  # "error" or "warning"
+    code: str
+    message: str
+    file: str
+    line: int
+    column: int
+    hints: list[str]
+    notes: list[str]
+    
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CheckResult:
+    """Result of checking a file or directory."""
+    file: str
+    success: bool
+    errors: list[DiagnosticOutput]
+    warnings: list[DiagnosticOutput]
+    
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "file": self.file,
+            "success": self.success,
+            "errors": [e.to_dict() for e in self.errors],
+            "warnings": [w.to_dict() for w in self.warnings],
+        }
+
+
+# =============================================================================
+# File Discovery
+# =============================================================================
+
+def discover_owl_files(path: Path) -> list[Path]:
+    """
+    Discover .ow files from a path.
+    
+    If path is a file, returns [path].
+    If path is a directory, returns all .ow files recursively.
+    """
+    if path.is_file():
+        return [path]
+    elif path.is_dir():
+        files = sorted(path.rglob("*.ow"))
+        return files
+    else:
+        return []
+
+
+# =============================================================================
+# Output Functions
+# =============================================================================
+
+def print_error_stderr(message: str) -> None:
+    """Print error message to stderr."""
+    print(f"\033[91m{message}\033[0m", file=sys.stderr)
+
+
+def print_warning_stderr(message: str) -> None:
+    """Print warning message to stderr."""
+    print(f"\033[93m{message}\033[0m", file=sys.stderr)
+
+
+def print_success_stderr(message: str) -> None:
+    """Print success message to stderr."""
+    print(f"\033[92m{message}\033[0m", file=sys.stderr)
+
+
+def print_info_stderr(message: str) -> None:
+    """Print info message to stderr."""
+    print(message, file=sys.stderr)
+
+
 def print_type_errors(input_file: str, errors: list) -> None:
     """Print type errors to stderr."""
-    print(f"\033[91mType errors in {input_file}:\033[0m")
+    print_error_stderr(f"Type errors in {input_file}:")
     for error in errors:
-        print(f"  {error}")
+        print(f"  {error}", file=sys.stderr)
 
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
 
 def main() -> int:
     """Main entry point for the CLI."""
@@ -78,11 +181,13 @@ def main() -> int:
     
     # check command (type check)
     check_parser = subparsers.add_parser("check", help="Type check without compiling")
-    check_parser.add_argument("file", help="OwlLang source file (.ow)")
+    check_parser.add_argument("path", help="OwlLang source file (.ow) or directory")
     check_parser.add_argument("--deny-warnings", "-W", action="store_true",
-                             help="Treat warnings as errors")
+                             help="Treat warnings as errors (exit code 2)")
     check_parser.add_argument("--no-warnings", action="store_true",
                              help="Suppress all warnings")
+    check_parser.add_argument("--json", action="store_true",
+                             help="Output diagnostics as JSON")
     
     # tokens command (debug)
     tokens_parser = subparsers.add_parser("tokens", help="Show tokens (debug)")
@@ -96,7 +201,7 @@ def main() -> int:
     
     if args.command is None:
         parser.print_help()
-        return 0
+        return EXIT_SUCCESS
     
     try:
         if args.command == "compile":
@@ -104,31 +209,40 @@ def main() -> int:
         elif args.command == "run":
             return cmd_run(args.file, profile=getattr(args, 'profile', False))
         elif args.command == "check":
-            return cmd_check(args.file, 
-                           deny_warnings=args.deny_warnings,
-                           no_warnings=args.no_warnings)
+            return cmd_check(
+                args.path,
+                deny_warnings=args.deny_warnings,
+                no_warnings=args.no_warnings,
+                json_output=args.json
+            )
         elif args.command == "tokens":
             return cmd_tokens(args.file)
         elif args.command == "ast":
             return cmd_ast(args.file)
     except (LexerError, ParseError) as e:
         print_error(e)
-        return 1
+        return EXIT_ERROR
     except CompileError as e:
         print_type_errors(args.file, e.errors)
-        return 1
+        return EXIT_ERROR
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
-        return 1
+        return EXIT_ERROR
     except Exception as e:
         print(f"Internal error: {e}", file=sys.stderr)
         raise
     
-    return 0
+    return EXIT_SUCCESS
 
+
+# =============================================================================
+# Commands
+# =============================================================================
 
 def cmd_compile(input_file: str, output_file: str | None = None, profile: bool = False) -> int:
     """Compile OwlLang file to Python."""
+    from .typechecker import TypeChecker
+    
     input_path = Path(input_file)
     
     if not input_path.exists():
@@ -143,26 +257,66 @@ def cmd_compile(input_file: str, output_file: str | None = None, profile: bool =
     # Read source
     source = input_path.read_text()
     
+    # Parse first to check for errors
+    try:
+        tokens = tokenize(source)
+        ast = parse(tokens)
+    except (LexerError, ParseError) as e:
+        print_error(e)
+        print_error_stderr(f"✗ Compilation failed - no output generated")
+        return EXIT_ERROR
+    
+    # Type check
+    checker = TypeChecker()
+    errors = checker.check(ast)
+    
+    if errors:
+        print_type_errors(input_file, errors)
+        print_error_stderr(f"✗ Compilation failed - no output generated")
+        return EXIT_ERROR
+    
     # Compile
-    print(f"Compiling {input_path} → {output_path}")
+    print_info_stderr(f"Compiling {input_path} → {output_path}")
     python_code = compile_source(source, profile=profile)
     
     # Write output
     output_path.write_text(python_code)
-    print("✓ Compiled successfully")
+    print_success_stderr("✓ Compiled successfully")
     
-    return 0
+    return EXIT_SUCCESS
 
 
 def cmd_run(input_file: str, profile: bool = False) -> int:
     """Compile and run OwlLang file."""
+    from .typechecker import TypeChecker
+    
     input_path = Path(input_file)
     
     if not input_path.exists():
         raise FileNotFoundError(f"File not found: {input_file}")
     
-    # Read and compile
+    # Read source
     source = input_path.read_text()
+    
+    # Parse first to check for errors
+    try:
+        tokens = tokenize(source)
+        ast = parse(tokens)
+    except (LexerError, ParseError) as e:
+        print_error(e)
+        print_error_stderr(f"✗ Cannot run - compilation failed")
+        return EXIT_ERROR
+    
+    # Type check
+    checker = TypeChecker()
+    errors = checker.check(ast)
+    
+    if errors:
+        print_type_errors(input_file, errors)
+        print_error_stderr(f"✗ Cannot run - type errors found")
+        return EXIT_ERROR
+    
+    # Compile and run
     python_code = compile_source(source, profile=profile)
     
     # Write to temp file and run
@@ -175,7 +329,7 @@ def cmd_run(input_file: str, profile: bool = False) -> int:
         temp_path = f.name
     
     try:
-        # Run with Python
+        # Run with Python - stdout goes to stdout, stderr to stderr
         result = subprocess.run(
             [sys.executable, temp_path],
             capture_output=False
@@ -186,60 +340,201 @@ def cmd_run(input_file: str, profile: bool = False) -> int:
         Path(temp_path).unlink(missing_ok=True)
 
 
-def cmd_check(input_file: str, deny_warnings: bool = False, no_warnings: bool = False) -> int:
-    """Type check OwlLang file without generating output."""
-    from .typechecker import TypeChecker, TypeError as OwlTypeError
+def cmd_check(
+    path: str,
+    deny_warnings: bool = False,
+    no_warnings: bool = False,
+    json_output: bool = False
+) -> int:
+    """Type check OwlLang file(s) without generating output."""
+    from .typechecker import TypeChecker
+    from .diagnostics import DUMMY_SPAN
     
-    input_path = Path(input_file)
+    input_path = Path(path)
     
     if not input_path.exists():
-        raise FileNotFoundError(f"File not found: {input_file}")
+        if json_output:
+            print(json.dumps({"error": f"Path not found: {path}"}))
+        else:
+            print_error_stderr(f"Error: Path not found: {path}")
+        return EXIT_ERROR
     
-    # Read and parse
-    source = input_path.read_text()
-    tokens = tokenize(source)
-    ast = parse(tokens)
+    # Discover files
+    files = discover_owl_files(input_path)
     
-    # Type check
-    checker = TypeChecker()
-    errors = checker.check(ast)
-    warnings = checker.get_warnings()
+    if not files:
+        if json_output:
+            print(json.dumps({"error": f"No .ow files found in: {path}"}))
+        else:
+            print_error_stderr(f"Error: No .ow files found in: {path}")
+        return EXIT_ERROR
     
-    has_errors = len(errors) > 0
-    has_warnings = len(warnings) > 0
+    # Check all files
+    results: list[CheckResult] = []
+    total_errors = 0
+    total_warnings = 0
     
-    # Print errors
-    if has_errors:
-        print(f"\033[91mType errors in {input_file}:\033[0m")
-        for error in errors:
-            print(f"  {error}")
+    for file_path in files:
+        result = check_single_file(file_path, no_warnings)
+        results.append(result)
+        total_errors += len(result.errors)
+        total_warnings += len(result.warnings)
     
-    # Print warnings (unless suppressed)
-    if has_warnings and not no_warnings:
-        color = "\033[93m" if not deny_warnings else "\033[91m"  # Yellow or red
-        label = "Warnings" if not deny_warnings else "Errors (from warnings)"
-        print(f"{color}{label} in {input_file}:\033[0m")
-        for warning in warnings:
-            print(f"  warning[{warning.code.value}]: {warning.message}")
-            for hint in warning.hints:
-                print(f"    hint: {hint}")
-    
-    # Determine exit code
-    if has_errors:
-        return 1
-    
-    if has_warnings and deny_warnings:
-        return 1
-    
-    # Success message
-    if not has_errors and not has_warnings:
-        print(f"✓ {input_file}: No issues found")
-    elif not has_errors and has_warnings and not no_warnings:
-        print(f"✓ {input_file}: No errors found ({len(warnings)} warning(s))")
+    # Output results
+    if json_output:
+        output_json(results)
+        # Determine exit code silently for JSON mode
+        if total_errors > 0:
+            return EXIT_ERROR
+        if total_warnings > 0 and deny_warnings:
+            return EXIT_WARNING_AS_ERROR
+        return EXIT_SUCCESS
     else:
-        print(f"✓ {input_file}: No errors found")
+        return output_human(results, deny_warnings, no_warnings)
+
+
+def check_single_file(file_path: Path, no_warnings: bool = False) -> CheckResult:
+    """Check a single file and return structured result."""
+    from .typechecker import TypeChecker
+    from .diagnostics import DUMMY_SPAN
     
-    return 0
+    errors: list[DiagnosticOutput] = []
+    warnings: list[DiagnosticOutput] = []
+    
+    try:
+        source = file_path.read_text()
+        tokens = tokenize(source)
+        ast = parse(tokens)
+        
+        checker = TypeChecker()
+        type_errors = checker.check(ast)
+        type_warnings = checker.get_warnings()
+        
+        # Convert errors
+        for err in type_errors:
+            errors.append(DiagnosticOutput(
+                severity="error",
+                code="E0000",  # Generic type error
+                message=str(err),
+                file=str(file_path),
+                line=getattr(err, 'line', 1),
+                column=getattr(err, 'column', 1),
+                hints=[],
+                notes=[],
+            ))
+        
+        # Convert warnings (sorted by line for deterministic order)
+        sorted_warnings = sorted(
+            type_warnings,
+            key=lambda w: (w.span.start.line if w.span else 0, w.span.start.column if w.span else 0)
+        )
+        
+        if not no_warnings:
+            for warn in sorted_warnings:
+                span = warn.span if warn.span else DUMMY_SPAN
+                warnings.append(DiagnosticOutput(
+                    severity="warning",
+                    code=warn.code.value,
+                    message=warn.message,
+                    file=str(file_path),
+                    line=span.start.line,
+                    column=span.start.column,
+                    hints=warn.hints,
+                    notes=warn.notes,
+                ))
+        
+    except LexerError as e:
+        errors.append(DiagnosticOutput(
+            severity="error",
+            code="E0100",  # Lexer error
+            message=e.message,
+            file=str(file_path),
+            line=e.line,
+            column=e.column,
+            hints=[],
+            notes=[],
+        ))
+    except ParseError as e:
+        errors.append(DiagnosticOutput(
+            severity="error",
+            code="E0200",  # Parse error
+            message=e.message,
+            file=str(file_path),
+            line=e.token.line,
+            column=e.token.column,
+            hints=[],
+            notes=[],
+        ))
+    
+    return CheckResult(
+        file=str(file_path),
+        success=len(errors) == 0,
+        errors=errors,
+        warnings=warnings,
+    )
+
+
+def output_json(results: list[CheckResult]) -> None:
+    """Output results as JSON to stdout."""
+    output = {
+        "version": __version__,
+        "files": [r.to_dict() for r in results],
+        "summary": {
+            "total_files": len(results),
+            "files_with_errors": sum(1 for r in results if not r.success),
+            "total_errors": sum(len(r.errors) for r in results),
+            "total_warnings": sum(len(r.warnings) for r in results),
+        }
+    }
+    print(json.dumps(output, indent=2))
+
+
+def output_human(
+    results: list[CheckResult],
+    deny_warnings: bool,
+    no_warnings: bool
+) -> int:
+    """Output results in human-readable format to stderr. Returns exit code."""
+    total_errors = sum(len(r.errors) for r in results)
+    total_warnings = sum(len(r.warnings) for r in results)
+    
+    # Print diagnostics for each file
+    for result in results:
+        if result.errors:
+            print_error_stderr(f"Errors in {result.file}:")
+            for err in result.errors:
+                print(f"  error[{err.code}]: {err.message}", file=sys.stderr)
+        
+        if result.warnings and not no_warnings:
+            color_code = "\033[91m" if deny_warnings else "\033[93m"
+            reset = "\033[0m"
+            label = "Errors (from warnings)" if deny_warnings else "Warnings"
+            print(f"{color_code}{label} in {result.file}:{reset}", file=sys.stderr)
+            for warn in result.warnings:
+                print(f"  warning[{warn.code}]: {warn.message}", file=sys.stderr)
+                for hint in warn.hints:
+                    print(f"    hint: {hint}", file=sys.stderr)
+    
+    # Summary
+    if len(results) > 1:
+        print(file=sys.stderr)
+        print(f"Checked {len(results)} files", file=sys.stderr)
+    
+    # Final status
+    if total_errors > 0:
+        print_error_stderr(f"✗ {total_errors} error(s) found")
+        return EXIT_ERROR
+    
+    if total_warnings > 0 and deny_warnings:
+        print_error_stderr(f"✗ {total_warnings} warning(s) treated as errors")
+        return EXIT_WARNING_AS_ERROR
+    
+    if total_warnings > 0 and not no_warnings:
+        print_success_stderr(f"✓ No errors found ({total_warnings} warning(s))")
+    else:
+        print_success_stderr(f"✓ No issues found")
+    
+    return EXIT_SUCCESS
 
 
 def cmd_tokens(input_file: str) -> int:
@@ -257,7 +552,7 @@ def cmd_tokens(input_file: str) -> int:
     for token in tokens:
         print(f"  {token}")
     
-    return 0
+    return EXIT_SUCCESS
 
 
 def cmd_ast(input_file: str) -> int:
@@ -275,20 +570,24 @@ def cmd_ast(input_file: str) -> int:
     print("-" * 50)
     print_ast(ast)
     
-    return 0
+    return EXIT_SUCCESS
 
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
 def print_error(error: Exception) -> None:
-    """Print formatted error message."""
+    """Print formatted error message to stderr."""
     if isinstance(error, LexerError):
-        print(f"\033[91mLexer Error\033[0m at {error.line}:{error.column}")
-        print(f"  {error.message}")
+        print(f"\033[91mLexer Error\033[0m at {error.line}:{error.column}", file=sys.stderr)
+        print(f"  {error.message}", file=sys.stderr)
     elif isinstance(error, ParseError):
-        print(f"\033[91mParse Error\033[0m at {error.token.line}:{error.token.column}")
-        print(f"  {error.message}")
-        print(f"  Got: {error.token.value!r}")
+        print(f"\033[91mParse Error\033[0m at {error.token.line}:{error.token.column}", file=sys.stderr)
+        print(f"  {error.message}", file=sys.stderr)
+        print(f"  Got: {error.token.value!r}", file=sys.stderr)
     else:
-        print(f"\033[91mError\033[0m: {error}")
+        print(f"\033[91mError\033[0m: {error}", file=sys.stderr)
 
 
 def print_ast(node: object, indent: int = 0) -> None:

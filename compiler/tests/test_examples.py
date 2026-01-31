@@ -66,8 +66,8 @@ class TestValidExamples:
             f"stdout: {result.stdout}\n"
             f"stderr: {result.stderr}"
         )
-        # Check for success message
-        assert "No errors found" in result.stdout or "No issues found" in result.stdout
+        # Check for success message (now goes to stderr)
+        assert "No errors found" in result.stderr or "No issues found" in result.stderr
 
 
 class TestInvalidExamples:
@@ -88,7 +88,8 @@ class TestInvalidExamples:
         assert result.returncode != 0, (
             f"{filename} should have type errors but passed"
         )
-        assert "Type errors" in result.stdout or "error" in result.stdout.lower()
+        # Error messages now go to stderr
+        assert "error" in result.stderr.lower()
 
 
 class TestExampleQuality:
