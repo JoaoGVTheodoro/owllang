@@ -29,6 +29,8 @@ from .error import (
     try_error_type_mismatch_error,
     wrong_type_arity_error,
     unknown_type_error,
+    match_not_exhaustive_error,
+    match_invalid_pattern_error,
 )
 from .warning import (
     Warning,
@@ -68,12 +70,17 @@ __all__ = [
     "try_error_type_mismatch_error",
     "wrong_type_arity_error",
     "unknown_type_error",
+    "match_not_exhaustive_error",
+    "match_invalid_pattern_error",
     # Warning
     "Warning",
     # Warning factory functions
     "unused_variable_warning",
     "unused_parameter_warning",
     "unreachable_code_warning",
+    "result_ignored_warning",
+    "option_ignored_warning",
+    "constant_condition_warning",
     # Printer
     "DiagnosticPrinter",
     "print_diagnostics",

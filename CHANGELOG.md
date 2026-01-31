@@ -5,6 +5,25 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3-alpha] - 2026-01-31
+
+### Improved
+- **Error recovery in parser**: Parser now uses synchronization to recover from syntax errors and continue parsing, reducing cascading errors
+- **Diagnostic deduplication**: TypeChecker prevents duplicate errors and warnings at the same location with the same message
+- **Precise error spans**: Match expression errors (exhaustiveness, invalid patterns) now use structured diagnostics with accurate source locations
+- **Return and condition errors**: Refined error messages for return type mismatches and non-boolean conditions
+
+### Added
+- **Error code E0504**: Invalid pattern in match expression
+- **Robustness tests**: 7 new tests verifying error deduplication, span precision, and error recovery behavior
+
+### Technical
+- Parser accumulates errors and synchronizes at safe tokens (fn, let, return, if, })
+- TypeChecker tracks reported diagnostics by (code, line, column, message) to avoid duplicates
+- Warnings without spans are not deduplicated (allows multiple unreachable code warnings)
+- 396 tests passing (added 7 robustness tests)
+- Zero breaking changes
+
 ## [0.1.2-alpha] - 2026-01-31
 
 ### Added

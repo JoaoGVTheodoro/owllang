@@ -33,6 +33,17 @@ class ParseError(Exception):
         super().__init__(f"Parse error at {token.line}:{token.column}: {message}")
 
 
+# Tokens that mark synchronization points for error recovery
+SYNC_TOKENS = frozenset({
+    TokenType.FN,
+    TokenType.LET,
+    TokenType.RETURN,
+    TokenType.IF,
+    TokenType.FROM,
+    TokenType.RBRACE,
+})
+
+
 class Parser:
     """
     Recursive descent parser for OwlLang.
@@ -56,11 +67,18 @@ class Parser:
         unary       → ("-") unary | call
         call        → primary ("(" arguments? ")" | "." IDENT)*
         primary     → INT | FLOAT | STRING | BOOL | IDENT | "(" expr ")"
+    
+    Error Recovery:
+        The parser uses synchronization to recover from errors. When an error
+        is encountered, it advances to a known "safe" token before continuing.
+        This reduces cascading errors from a single syntax mistake.
     """
     
     def __init__(self, tokens: list[Token]) -> None:
         self.tokens = tokens
         self.pos = 0
+        self.errors: list[ParseError] = []
+        self._panic_mode = False
     
     def parse(self) -> Program:
         """Parse the entire program."""
@@ -69,14 +87,47 @@ class Parser:
         statements: list[Stmt] = []
         
         while not self._is_at_end():
-            if self._check(TokenType.FROM):
-                imports.append(self._parse_import())
-            elif self._check(TokenType.FN):
-                functions.append(self._parse_fn_decl())
-            else:
-                statements.append(self._parse_statement())
+            try:
+                if self._check(TokenType.FROM):
+                    imports.append(self._parse_import())
+                elif self._check(TokenType.FN):
+                    functions.append(self._parse_fn_decl())
+                else:
+                    statements.append(self._parse_statement())
+                self._panic_mode = False  # Recovered successfully
+            except ParseError as e:
+                self._record_error(e)
+                self._synchronize()
+        
+        # If we collected any errors, raise the first one (preserves backward compat)
+        if self.errors:
+            raise self.errors[0]
         
         return Program(imports, functions, statements)
+    
+    def _record_error(self, error: ParseError) -> None:
+        """Record an error, avoiding duplicates from the same location."""
+        if self._panic_mode:
+            # Don't record cascading errors while in panic mode
+            return
+        self.errors.append(error)
+        self._panic_mode = True
+    
+    def _synchronize(self) -> None:
+        """Advance to a known synchronization point after an error."""
+        self._advance()
+        
+        while not self._is_at_end():
+            # Synchronize after a closing brace (end of block)
+            if self._peek(-1).type == TokenType.RBRACE:
+                return
+            
+            # Synchronize at statement/declaration boundaries
+            if self._peek().type in SYNC_TOKENS:
+                return
+            
+            self._advance()
+
     
     # =========================================================================
     # Token Helpers

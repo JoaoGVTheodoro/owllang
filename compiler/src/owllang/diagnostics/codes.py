@@ -68,6 +68,7 @@ class ErrorCode(Enum):
     MISSING_RETURN = "E0501"
     UNREACHABLE_CODE = "E0502"
     NON_EXHAUSTIVE_MATCH = "E0503"
+    INVALID_PATTERN = "E0504"
 
 
 class WarningCode(Enum):

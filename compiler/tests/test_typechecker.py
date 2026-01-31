@@ -295,7 +295,7 @@ class TestFunctions:
         checker = TypeChecker()
         errors = checker.check(program)
         assert len(errors) == 1
-        assert "Return type mismatch" in errors[0].message
+        assert "return type mismatch" in errors[0].message.lower()
     
     def test_function_with_params(self) -> None:
         """Function parameters should be in scope."""
@@ -356,7 +356,7 @@ class TestIfStatement:
         )
         checker._check_if(stmt)
         assert len(checker.errors) == 1
-        assert "Condition must be Bool" in checker.errors[0].message
+        assert "condition" in checker.errors[0].message.lower() and "bool" in checker.errors[0].message.lower()
 
 
 class TestProgramIntegration:
@@ -587,7 +587,7 @@ class TestFunctionWithOptionResult:
         checker = TypeChecker()
         errors = checker.check(program)
         assert len(errors) == 1
-        assert "Return type mismatch" in errors[0].message
+        assert "return type mismatch" in errors[0].message.lower()
 
 
 class TestIfAsExpression:

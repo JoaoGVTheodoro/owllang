@@ -41,6 +41,7 @@ from ..diagnostics import (
     branch_type_mismatch_error, condition_not_bool_error, wrong_arg_count_error,
     cannot_negate_error, wrong_type_arity_error, unknown_type_error,
     try_not_result_error, try_outside_result_fn_error, try_error_type_mismatch_error,
+    match_not_exhaustive_error, match_invalid_pattern_error,
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
@@ -160,6 +161,11 @@ class TypeChecker:
     
     Validates types in the AST and collects errors and warnings.
     Does not modify the AST.
+    
+    Deduplication:
+        The checker tracks reported diagnostics by (code, line, column) to avoid
+        emitting duplicate errors or warnings for the same issue. This reduces
+        noise when a single error propagates through multiple checks.
     """
     
     def __init__(self, filename: str = "<unknown>") -> None:
@@ -169,6 +175,9 @@ class TypeChecker:
         self.env = TypeEnv()
         self.current_function_return_type: OwlType | None = None
         self.filename = filename
+        # Track reported diagnostics to prevent duplicates: (code, line, column)
+        self._reported_errors: set[tuple[str, int, int]] = set()
+        self._reported_warnings: set[tuple[str, int, int]] = set()
         
         # Built-in functions
         self._register_builtins()
@@ -179,7 +188,23 @@ class TypeChecker:
         self.env.define_fn("print", [ANY], VOID)
     
     def _add_warning(self, warning: Warning) -> None:
-        """Add a warning to the warning list."""
+        """Add a warning to the warning list, avoiding duplicates."""
+        # Don't deduplicate warnings without span information
+        if warning.span is None:
+            self.warnings.append(warning)
+            return
+        
+        # Use full message to differentiate warnings at the same location
+        # (e.g., multiple unused parameters on same line)
+        key = (
+            warning.code.value,
+            warning.span.start.line,
+            warning.span.start.column,
+            warning.message
+        )
+        if key in self._reported_warnings:
+            return  # Skip duplicate
+        self._reported_warnings.add(key)
         self.warnings.append(warning)
     
     def check(self, program: Program) -> list[TypeError]:
@@ -190,6 +215,8 @@ class TypeChecker:
         self.errors = []
         self.diagnostics = []
         self.warnings = []
+        self._reported_errors = set()
+        self._reported_warnings = set()
         
         # First pass: collect function signatures
         for fn in program.functions:
@@ -491,10 +518,12 @@ class TypeChecker:
             
             if self.current_function_return_type and self.current_function_return_type != VOID:
                 if not types_compatible(self.current_function_return_type, return_type):
-                    self._error(
-                        f"Return type mismatch: expected {self.current_function_return_type}, got {return_type}",
-                        1, 1
-                    )
+                    span = self._get_span(stmt)
+                    self._add_diagnostic(return_type_mismatch_error(
+                        str(self.current_function_return_type),
+                        str(return_type),
+                        span
+                    ))
     
     def _check_if(self, stmt: IfStmt) -> None:
         """Check if statement."""
@@ -505,10 +534,8 @@ class TypeChecker:
         
         # Condition should be Bool (or compatible)
         if cond_type not in (BOOL, ANY, UNKNOWN):
-            self._error(
-                f"Condition must be Bool, got {cond_type}",
-                1, 1
-            )
+            span = self._get_span(stmt.condition)
+            self._add_diagnostic(condition_not_bool_error(str(cond_type), span))
         
         # Check then branch
         for s in stmt.then_body:
@@ -887,13 +914,15 @@ class TypeChecker:
             
             # Rule 2: validate pattern matches subject type
             pattern_name = self._get_pattern_name(pattern)
+            pattern_span = self._get_span(pattern)
             
             if pattern_name not in expected_patterns:
-                self._error(
-                    f"Pattern '{pattern_name}' is not valid for {subject_type}. "
-                    f"Expected: {', '.join(sorted(expected_patterns))}",
-                    span.start.line, span.start.column
-                )
+                self._add_diagnostic(match_invalid_pattern_error(
+                    pattern_name,
+                    str(subject_type),
+                    expected_patterns,
+                    pattern_span
+                ))
                 continue
             
             found_patterns.add(pattern_name)
@@ -922,10 +951,7 @@ class TypeChecker:
         # Rule 3: check exhaustivity
         missing_patterns = expected_patterns - found_patterns
         if missing_patterns:
-            self._error(
-                f"Match is not exhaustive. Missing: {', '.join(sorted(missing_patterns))}",
-                span.start.line, span.start.column
-            )
+            self._add_diagnostic(match_not_exhaustive_error(missing_patterns, span))
         
         # Rule 4: check all arm types are compatible
         if len(arm_types) == 0:
@@ -968,10 +994,20 @@ class TypeChecker:
     
     def _error(self, message: str, line: int, column: int) -> None:
         """Record a type error (legacy method for backward compatibility)."""
+        # Deduplicate by (message, line, column)
+        key = (message, line, column)
+        if key in self._reported_errors:
+            return  # Skip duplicate
+        # Use a simple key since legacy errors don't have codes
+        self._reported_errors.add(("LEGACY", line, column))
         self.errors.append(TypeError(message, line, column))
     
     def _add_diagnostic(self, diag: DiagnosticError) -> None:
-        """Record a structured diagnostic error."""
+        """Record a structured diagnostic error, avoiding duplicates."""
+        key = (diag.code, diag.span.start.line, diag.span.start.column)
+        if key in self._reported_errors:
+            return  # Skip duplicate
+        self._reported_errors.add(key)
         self.diagnostics.append(diag)
         # Also add to legacy errors for backward compatibility
         self.errors.append(TypeError.from_diagnostic(diag))

@@ -231,6 +231,31 @@ def try_error_type_mismatch_error(
     ).with_note(f"expression has error type `{operand_err}`").with_note(f"function returns error type `{fn_err}`").with_hint("ensure the error types are compatible")
 
 
+def match_not_exhaustive_error(missing: set[str], span: Span) -> DiagnosticError:
+    """Create an error for non-exhaustive match expression."""
+    missing_list = ', '.join(sorted(missing))
+    return DiagnosticError(
+        code=ErrorCode.NON_EXHAUSTIVE_MATCH.value,
+        message=f"match is not exhaustive",
+        span=span,
+    ).with_note(f"missing patterns: {missing_list}").with_hint("add arms for all possible patterns")
+
+
+def match_invalid_pattern_error(
+    pattern_name: str,
+    subject_type: str,
+    expected: set[str],
+    span: Span
+) -> DiagnosticError:
+    """Create an error for invalid pattern in match."""
+    expected_list = ', '.join(sorted(expected))
+    return DiagnosticError(
+        code=ErrorCode.INVALID_PATTERN.value,
+        message=f"pattern `{pattern_name}` is not valid for type `{subject_type}`",
+        span=span,
+    ).with_note(f"expected patterns: {expected_list}")
+
+
 def wrong_type_arity_error(
     type_name: str,
     expected: int,
