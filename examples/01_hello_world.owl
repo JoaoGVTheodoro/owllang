@@ -1,0 +1,12 @@
+// ===========================================
+// OwlLang Example: Hello World
+// ===========================================
+
+// Script mode - no main function required
+print("Hello, World! 🦉")
+
+// Or with main function
+fn main() {
+    print("Hello from OwlLang!")
+    print("The wise owl greets you.")
+}

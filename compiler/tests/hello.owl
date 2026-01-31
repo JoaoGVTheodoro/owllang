@@ -1,0 +1,48 @@
+// OwlLang Test File: Hello World
+// This demonstrates the MVP features
+
+from python import math
+
+fn add(a, b) {
+    return a + b
+}
+
+fn greet(name) {
+    print("Hello, " + name + "!")
+}
+
+fn main() {
+    // Variables
+    let x = 10
+    let y = 20
+    let pi = 3.14159
+    let message = "OwlLang MVP"
+    let is_ready = true
+    
+    // Arithmetic
+    let sum = x + y
+    let product = x * y
+    let difference = y - x
+    
+    // Function calls
+    print("=== OwlLang MVP Demo ===")
+    print(message)
+    print(sum)
+    print(product)
+    
+    // Using our own function
+    let result = add(100, 200)
+    print(result)
+    
+    // Using Python's math module
+    let sqrt_result = math.sqrt(16.0)
+    print(sqrt_result)
+    
+    let ceil_result = math.ceil(3.2)
+    print(ceil_result)
+    
+    // Greet
+    greet("World")
+    
+    print("=== Done! ===")
+}

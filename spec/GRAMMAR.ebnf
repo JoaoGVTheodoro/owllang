@@ -1,0 +1,282 @@
+# OwlLang Grammar (EBNF)
+
+# This is the formal grammar specification for OwlLang
+# Using Extended Backus-Naur Form (EBNF)
+
+# ============================================================
+# LEXICAL RULES
+# ============================================================
+
+# Identifiers
+IDENT       = LETTER (LETTER | DIGIT | "_")* ;
+TYPE_IDENT  = UPPER_LETTER (LETTER | DIGIT)* ;
+LETTER      = "a".."z" | "A".."Z" | "_" ;
+UPPER_LETTER = "A".."Z" ;
+DIGIT       = "0".."9" ;
+
+# Literals
+INT_LIT     = DIGIT+ | "0x" HEX_DIGIT+ | "0b" BIN_DIGIT+ ;
+FLOAT_LIT   = DIGIT+ "." DIGIT+ (("e" | "E") ("+" | "-")? DIGIT+)? ;
+STRING_LIT  = '"' STRING_CHAR* '"' | '"""' MULTILINE_CHAR* '"""' ;
+CHAR_LIT    = "'" CHAR_CONTENT "'" ;
+BOOL_LIT    = "true" | "false" ;
+
+# Keywords
+KEYWORD     = "fn" | "let" | "var" | "const" | "if" | "else" | "match"
+            | "for" | "while" | "loop" | "break" | "continue" | "return"
+            | "struct" | "class" | "enum" | "trait" | "impl" | "extends"
+            | "override" | "mut" | "async" | "await" | "spawn" | "try"
+            | "catch" | "from" | "import" | "as" | "type" | "newtype"
+            | "where" | "in" | "yield" | "with" | "python" ;
+
+# Operators
+OPERATOR    = "+" | "-" | "*" | "/" | "%" | "**" | "==" | "!=" | "<" | ">"
+            | "<=" | ">=" | "&&" | "||" | "!" | "&" | "|" | "^" | "~"
+            | "<<" | ">>" | "|>" | "??" | "?" | "=" | "+=" | "-=" | "*="
+            | "/=" | ".." | "..=" | "=>" | "->" | "::" | "." | "," | ":"
+            | ";" | "@" ;
+
+# Delimiters
+DELIMITER   = "(" | ")" | "[" | "]" | "{" | "}" ;
+
+# Comments
+LINE_COMMENT  = "//" (!NEWLINE)* NEWLINE ;
+BLOCK_COMMENT = "/*" (!"*/")* "*/" ;
+
+# ============================================================
+# SYNTAX RULES
+# ============================================================
+
+# Program structure
+program         = item* ;
+item            = import_decl
+                | fn_decl
+                | struct_decl
+                | class_decl
+                | enum_decl
+                | trait_decl
+                | impl_block
+                | type_alias
+                | const_decl
+                | statement ;  # Script mode
+
+# ============================================================
+# IMPORTS
+# ============================================================
+
+import_decl     = python_import | owl_import ;
+
+python_import   = "from" "python" "import" module_path ("as" IDENT)?
+                  (":" type_hints)? ;
+owl_import      = "from" module_path "import" import_items ;
+
+module_path     = IDENT ("." IDENT)* ;
+import_items    = "*"
+                | IDENT ("as" IDENT)?
+                | "{" import_item ("," import_item)* "}" ;
+import_item     = IDENT ("as" IDENT)? ;
+type_hints      = "{" type_hint ("," type_hint)* "}" ;
+type_hint       = IDENT ":" type_expr ;
+
+# ============================================================
+# DECLARATIONS
+# ============================================================
+
+# Function declaration
+fn_decl         = attribute* "async"? "fn" IDENT generics? "(" params? ")"
+                  ("->" type_expr)? (block | "=" expr) ;
+params          = param ("," param)* ;
+param           = "mut"? IDENT ":" type_expr ("=" expr)? ;
+generics        = "[" generic_param ("," generic_param)* "]" ;
+generic_param   = TYPE_IDENT (":" type_bounds)? ;
+type_bounds     = type_expr ("+" type_expr)* ;
+
+# Struct declaration
+struct_decl     = attribute* "struct" TYPE_IDENT generics? "{" struct_fields "}" ;
+struct_fields   = struct_field ("," struct_field)* ","? ;
+struct_field    = IDENT ":" type_expr ;
+
+# Class declaration
+class_decl      = attribute* "class" TYPE_IDENT generics? 
+                  ("extends" type_expr)? "{" class_body "}" ;
+class_body      = class_member* ;
+class_member    = field_decl | fn_decl ;
+field_decl      = "var"? IDENT ":" type_expr ;
+
+# Enum declaration
+enum_decl       = attribute* "enum" TYPE_IDENT generics? "{" enum_variants "}" ;
+enum_variants   = enum_variant ("," enum_variant)* ","? ;
+enum_variant    = TYPE_IDENT ("(" variant_fields ")")? ;
+variant_fields  = variant_field ("," variant_field)* ;
+variant_field   = (IDENT ":")? type_expr ;
+
+# Trait declaration
+trait_decl      = attribute* "trait" TYPE_IDENT generics? 
+                  (":" type_bounds)? "{" trait_body "}" ;
+trait_body      = trait_member* ;
+trait_member    = fn_signature | fn_decl ;
+fn_signature    = "fn" IDENT generics? "(" params? ")" ("->" type_expr)? ;
+
+# Implementation block
+impl_block      = "impl" generics? type_expr ("for" type_expr)? 
+                  ("where" where_clause)? "{" impl_body "}" ;
+impl_body       = fn_decl* ;
+where_clause    = type_constraint ("," type_constraint)* ;
+type_constraint = TYPE_IDENT ":" type_bounds ;
+
+# Type alias
+type_alias      = "type" TYPE_IDENT generics? "=" type_expr ;
+newtype_decl    = "newtype" TYPE_IDENT generics? "(" type_expr ")" ;
+
+# Constant
+const_decl      = "const" IDENT ":" type_expr "=" expr ;
+
+# ============================================================
+# TYPES
+# ============================================================
+
+type_expr       = type_primary ("|" type_primary)* ;  # Union types
+type_primary    = type_path generics_apply?
+                | tuple_type
+                | fn_type
+                | "(" type_expr ")" ;
+type_path       = TYPE_IDENT ("::" TYPE_IDENT)* ;
+generics_apply  = "[" type_expr ("," type_expr)* "]" ;
+tuple_type      = "(" type_expr ("," type_expr)+ ")" ;
+fn_type         = "(" (type_expr ("," type_expr)*)? ")" "->" type_expr ;
+
+# ============================================================
+# STATEMENTS
+# ============================================================
+
+statement       = let_stmt
+                | var_stmt
+                | expr_stmt
+                | return_stmt
+                | break_stmt
+                | continue_stmt
+                | for_stmt
+                | while_stmt
+                | loop_stmt ;
+
+let_stmt        = "let" pattern (":" type_expr)? "=" expr ;
+var_stmt        = "var" IDENT (":" type_expr)? "=" expr ;
+expr_stmt       = expr ;
+return_stmt     = "return" expr? ;
+break_stmt      = "break" expr? ;
+continue_stmt   = "continue" ;
+
+for_stmt        = "for" pattern "in" expr block ;
+while_stmt      = "while" expr block ;
+loop_stmt       = "loop" block ;
+
+block           = "{" statement* expr? "}" ;
+
+# ============================================================
+# EXPRESSIONS
+# ============================================================
+
+expr            = assignment ;
+assignment      = pipe_expr (("=" | "+=" | "-=" | "*=" | "/=") pipe_expr)? ;
+pipe_expr       = or_expr ("|>" or_expr)* ;
+or_expr         = and_expr ("||" and_expr)* ;
+and_expr        = eq_expr ("&&" eq_expr)* ;
+eq_expr         = cmp_expr (("==" | "!=") cmp_expr)* ;
+cmp_expr        = bit_or_expr (("<" | ">" | "<=" | ">=") bit_or_expr)* ;
+bit_or_expr     = bit_xor_expr ("|" bit_xor_expr)* ;
+bit_xor_expr    = bit_and_expr ("^" bit_and_expr)* ;
+bit_and_expr    = shift_expr ("&" shift_expr)* ;
+shift_expr      = add_expr (("<<" | ">>") add_expr)* ;
+add_expr        = mul_expr (("+" | "-") mul_expr)* ;
+mul_expr        = pow_expr (("*" | "/" | "%") pow_expr)* ;
+pow_expr        = unary_expr ("**" unary_expr)* ;
+unary_expr      = ("!" | "-" | "~") unary_expr | postfix_expr ;
+postfix_expr    = primary_expr (call | index | field | try_op | await_op)* ;
+
+call            = "(" (arg ("," arg)*)? ")" ;
+arg             = (IDENT ":")? expr ;
+index           = "[" expr "]" ;
+field           = "." IDENT ;
+try_op          = "?" ;
+await_op        = ".await" ;
+
+primary_expr    = literal
+                | IDENT
+                | if_expr
+                | match_expr
+                | lambda
+                | struct_init
+                | list_expr
+                | map_expr
+                | set_expr
+                | tuple_expr
+                | try_expr
+                | async_expr
+                | spawn_expr
+                | "(" expr ")"
+                | block ;
+
+# Literals
+literal         = INT_LIT | FLOAT_LIT | STRING_LIT | CHAR_LIT | BOOL_LIT
+                | "None" ;
+
+# If expression
+if_expr         = "if" expr block ("else" "if" expr block)* ("else" block)? ;
+
+# Match expression
+match_expr      = "match" expr "{" match_arm ("," match_arm)* ","? "}" ;
+match_arm       = pattern ("if" expr)? "=>" (expr | block) ;
+
+# Lambda
+lambda          = "|" params? "|" ("->" type_expr)? (expr | block) ;
+placeholder     = "_" ("." IDENT | "[" expr "]" | call)* 
+                | "_" operator expr ;
+
+# Struct initialization
+struct_init     = type_path "{" field_init ("," field_init)* ","? "}" 
+                  ("with" "{" field_init ("," field_init)* "}")? ;
+field_init      = IDENT (":" expr)? ;
+
+# Collections
+list_expr       = "[" (expr ("," expr)* ","?)? "]" ;
+map_expr        = "{" (map_entry ("," map_entry)* ","?)? "}" ;
+map_entry       = expr ":" expr ;
+set_expr        = "{" expr ("," expr)+ ","? "}" ;  # Needs 2+ elements to distinguish from map
+tuple_expr      = "(" expr ("," expr)+ ")" ;
+
+# Special expressions
+try_expr        = "try" block catch_clause+ ;
+catch_clause    = "catch" IDENT (":" type_expr)? block ;
+async_expr      = "async" block ;
+spawn_expr      = "spawn" block ;
+
+# ============================================================
+# PATTERNS
+# ============================================================
+
+pattern         = literal_pattern
+                | ident_pattern
+                | tuple_pattern
+                | list_pattern
+                | struct_pattern
+                | enum_pattern
+                | wildcard_pattern
+                | or_pattern ;
+
+literal_pattern = INT_LIT | FLOAT_LIT | STRING_LIT | BOOL_LIT ;
+ident_pattern   = IDENT ;
+tuple_pattern   = "(" pattern ("," pattern)* ")" ;
+list_pattern    = "[" (pattern ("," pattern)* ("," "..." IDENT?)?)? "]" ;
+struct_pattern  = type_path "{" field_pattern ("," field_pattern)* "}" ;
+field_pattern   = IDENT (":" pattern)? ;
+enum_pattern    = type_path ("." TYPE_IDENT)? ("(" pattern ("," pattern)* ")")? ;
+wildcard_pattern = "_" ;
+or_pattern      = pattern ("|" pattern)+ ;
+
+# ============================================================
+# ATTRIBUTES
+# ============================================================
+
+attribute       = "@" IDENT ("(" attr_args ")")? ;
+attr_args       = attr_arg ("," attr_arg)* ;
+attr_arg        = IDENT ("=" expr)? | expr ;

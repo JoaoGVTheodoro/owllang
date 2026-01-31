@@ -1,0 +1,250 @@
+// ===========================================
+// OwlLang Real-World Example: REST API Client
+// ===========================================
+// This example shows a practical use case:
+// A type-safe REST API client using Python libraries
+
+from python import requests
+from python import json
+
+// ============ Domain Types ============
+
+struct User {
+    id: Int,
+    name: String,
+    email: String,
+    active: Bool
+}
+
+struct Post {
+    id: Int,
+    user_id: Int,
+    title: String,
+    body: String
+}
+
+struct Comment {
+    id: Int,
+    post_id: Int,
+    name: String,
+    email: String,
+    body: String
+}
+
+// Error types
+enum ApiError {
+    NetworkError(message: String),
+    NotFound(resource: String, id: Int),
+    Unauthorized,
+    ServerError(status: Int, message: String),
+    ParseError(message: String)
+}
+
+impl ApiError {
+    fn to_string(self) -> String {
+        match self {
+            ApiError.NetworkError(msg) => "Network error: {msg}",
+            ApiError.NotFound(res, id) => "{res} with id {id} not found",
+            ApiError.Unauthorized => "Unauthorized access",
+            ApiError.ServerError(status, msg) => "Server error {status}: {msg}",
+            ApiError.ParseError(msg) => "Parse error: {msg}"
+        }
+    }
+}
+
+// ============ API Client ============
+
+struct ApiClient {
+    base_url: String,
+    timeout: Int
+}
+
+impl ApiClient {
+    fn new(base_url: String, timeout: Int = 30) -> ApiClient {
+        ApiClient { base_url, timeout }
+    }
+    
+    fn get[T](self, endpoint: String) -> Result[T, ApiError] {
+        let url = "{self.base_url}{endpoint}"
+        
+        try {
+            let response = requests.get(url, timeout: self.timeout)
+            
+            match response.status_code {
+                200 => {
+                    try {
+                        Ok(response.json() as T)
+                    } catch e {
+                        Err(ApiError.ParseError("{e}"))
+                    }
+                },
+                401 => Err(ApiError.Unauthorized),
+                404 => Err(ApiError.NotFound(endpoint, 0)),
+                status => Err(ApiError.ServerError(status, response.text()))
+            }
+        } catch e: requests.Timeout {
+            Err(ApiError.NetworkError("Request timed out"))
+        } catch e: requests.ConnectionError {
+            Err(ApiError.NetworkError("Connection failed"))
+        } catch e {
+            Err(ApiError.NetworkError("{e}"))
+        }
+    }
+    
+    fn post[T, R](self, endpoint: String, data: T) -> Result[R, ApiError] {
+        let url = "{self.base_url}{endpoint}"
+        
+        try {
+            let response = requests.post(
+                url,
+                json: data,
+                timeout: self.timeout
+            )
+            
+            match response.status_code {
+                200 | 201 => {
+                    try {
+                        Ok(response.json() as R)
+                    } catch e {
+                        Err(ApiError.ParseError("{e}"))
+                    }
+                },
+                401 => Err(ApiError.Unauthorized),
+                status => Err(ApiError.ServerError(status, response.text()))
+            }
+        } catch e {
+            Err(ApiError.NetworkError("{e}"))
+        }
+    }
+}
+
+// ============ Typed API Operations ============
+
+struct UserApi {
+    client: ApiClient
+}
+
+impl UserApi {
+    fn new(client: ApiClient) -> UserApi {
+        UserApi { client }
+    }
+    
+    fn get_user(self, id: Int) -> Result[User, ApiError] {
+        self.client.get("/users/{id}")
+    }
+    
+    fn get_all_users(self) -> Result[List[User], ApiError] {
+        self.client.get("/users")
+    }
+    
+    fn get_user_posts(self, user_id: Int) -> Result[List[Post], ApiError] {
+        self.client.get("/users/{user_id}/posts")
+    }
+    
+    fn create_user(self, name: String, email: String) -> Result[User, ApiError] {
+        let data = {
+            "name": name,
+            "email": email,
+            "active": true
+        }
+        self.client.post("/users", data)
+    }
+}
+
+struct PostApi {
+    client: ApiClient
+}
+
+impl PostApi {
+    fn new(client: ApiClient) -> PostApi {
+        PostApi { client }
+    }
+    
+    fn get_post(self, id: Int) -> Result[Post, ApiError] {
+        self.client.get("/posts/{id}")
+    }
+    
+    fn get_all_posts(self) -> Result[List[Post], ApiError] {
+        self.client.get("/posts")
+    }
+    
+    fn get_comments(self, post_id: Int) -> Result[List[Comment], ApiError] {
+        self.client.get("/posts/{post_id}/comments")
+    }
+}
+
+// ============ Main Application ============
+
+fn main() {
+    let client = ApiClient.new("https://jsonplaceholder.typicode.com")
+    let user_api = UserApi.new(client)
+    let post_api = PostApi.new(client)
+    
+    print("🦉 OwlLang REST API Client Demo\n")
+    
+    // Fetch a single user
+    print("=== Fetching User ===")
+    match user_api.get_user(1) {
+        Ok(user) => {
+            print("Found user:")
+            print("  ID: {user.id}")
+            print("  Name: {user.name}")
+            print("  Email: {user.email}")
+        },
+        Err(e) => print("Error: {e.to_string()}")
+    }
+    
+    // Fetch user's posts
+    print("\n=== User's Posts ===")
+    match user_api.get_user_posts(1) {
+        Ok(posts) => {
+            print("Found {posts.len()} posts:")
+            for post in posts.take(3) {
+                print("  - {post.title}")
+            }
+            if posts.len() > 3 {
+                print("  ... and {posts.len() - 3} more")
+            }
+        },
+        Err(e) => print("Error: {e.to_string()}")
+    }
+    
+    // Fetch comments for a post
+    print("\n=== Post Comments ===")
+    match post_api.get_comments(1) {
+        Ok(comments) => {
+            print("Found {comments.len()} comments:")
+            for comment in comments.take(2) {
+                print("  [{comment.email}]: {comment.name}")
+            }
+        },
+        Err(e) => print("Error: {e.to_string()}")
+    }
+    
+    // Demonstrate pipe operator for data processing
+    print("\n=== Data Processing with Pipes ===")
+    match post_api.get_all_posts() {
+        Ok(posts) => {
+            let summary = posts
+                |> filter(_.user_id == 1)
+                |> map(_.title)
+                |> map(|t| if t.len() > 40 { t.take(37) + "..." } else { t })
+                |> enumerate()
+                |> map(|(i, t)| "{i + 1}. {t}")
+                |> join("\n")
+            
+            print("User 1's posts:\n{summary}")
+        },
+        Err(e) => print("Error: {e.to_string()}")
+    }
+    
+    // Error handling demonstration
+    print("\n=== Error Handling ===")
+    match user_api.get_user(99999) {
+        Ok(user) => print("Found: {user.name}"),
+        Err(ApiError.NotFound(_, id)) => print("User {id} does not exist"),
+        Err(e) => print("Unexpected error: {e.to_string()}")
+    }
+    
+    print("\n✅ Demo complete!")
+}

@@ -1,0 +1,381 @@
+// ===========================================
+// OwlLang Example: Classes and Structs
+// ===========================================
+
+// ============ Structs (Immutable Data) ============
+
+struct Point {
+    x: Float,
+    y: Float
+}
+
+impl Point {
+    // Static constructor
+    fn new(x: Float, y: Float) -> Point {
+        Point { x, y }
+    }
+    
+    fn origin() -> Point {
+        Point { x: 0.0, y: 0.0 }
+    }
+    
+    // Instance methods (take self)
+    fn distance_from_origin(self) -> Float {
+        (self.x ** 2 + self.y ** 2).sqrt()
+    }
+    
+    fn distance_to(self, other: Point) -> Float {
+        let dx = self.x - other.x
+        let dy = self.y - other.y
+        (dx ** 2 + dy ** 2).sqrt()
+    }
+    
+    // Returns new instance (immutable)
+    fn translate(self, dx: Float, dy: Float) -> Point {
+        Point { x: self.x + dx, y: self.y + dy }
+    }
+    
+    fn scale(self, factor: Float) -> Point {
+        Point { x: self.x * factor, y: self.y * factor }
+    }
+}
+
+// ============ Struct with Generics ============
+
+struct Pair[A, B] {
+    first: A,
+    second: B
+}
+
+impl Pair[A, B] {
+    fn new(first: A, second: B) -> Pair[A, B] {
+        Pair { first, second }
+    }
+    
+    fn swap(self) -> Pair[B, A] {
+        Pair { first: self.second, second: self.first }
+    }
+    
+    fn map_first[C](self, f: (A) -> C) -> Pair[C, B] {
+        Pair { first: f(self.first), second: self.second }
+    }
+    
+    fn map_second[C](self, f: (B) -> C) -> Pair[A, C] {
+        Pair { first: self.first, second: f(self.second) }
+    }
+}
+
+// ============ Enums (Algebraic Data Types) ============
+
+enum Color {
+    Red,
+    Green,
+    Blue,
+    RGB(r: Int, g: Int, b: Int),
+    Hex(value: String)
+}
+
+impl Color {
+    fn to_rgb(self) -> (Int, Int, Int) {
+        match self {
+            Color.Red => (255, 0, 0),
+            Color.Green => (0, 255, 0),
+            Color.Blue => (0, 0, 255),
+            Color.RGB(r, g, b) => (r, g, b),
+            Color.Hex(value) => parse_hex_color(value)
+        }
+    }
+    
+    fn to_hex(self) -> String {
+        let (r, g, b) = self.to_rgb()
+        "#{r:02x}{g:02x}{b:02x}"
+    }
+}
+
+enum Shape {
+    Circle(center: Point, radius: Float),
+    Rectangle(top_left: Point, width: Float, height: Float),
+    Triangle(p1: Point, p2: Point, p3: Point)
+}
+
+impl Shape {
+    fn area(self) -> Float {
+        match self {
+            Shape.Circle(_, radius) => 3.14159 * radius ** 2,
+            Shape.Rectangle(_, width, height) => width * height,
+            Shape.Triangle(p1, p2, p3) => {
+                // Shoelace formula
+                let a = p1.x * (p2.y - p3.y)
+                let b = p2.x * (p3.y - p1.y)
+                let c = p3.x * (p1.y - p2.y)
+                (a + b + c).abs() / 2.0
+            }
+        }
+    }
+    
+    fn perimeter(self) -> Float {
+        match self {
+            Shape.Circle(_, radius) => 2.0 * 3.14159 * radius,
+            Shape.Rectangle(_, width, height) => 2.0 * (width + height),
+            Shape.Triangle(p1, p2, p3) => {
+                p1.distance_to(p2) + p2.distance_to(p3) + p3.distance_to(p1)
+            }
+        }
+    }
+}
+
+// ============ Traits (Interfaces) ============
+
+trait Drawable {
+    fn draw(self)
+    
+    // Default implementation
+    fn draw_with_color(self, color: Color) {
+        print("Setting color to {color.to_hex()}")
+        self.draw()
+    }
+}
+
+trait Serializable {
+    fn to_json(self) -> String
+    fn from_json(json: String) -> Self
+}
+
+// Implement trait for struct
+impl Drawable for Point {
+    fn draw(self) {
+        print("Drawing point at ({self.x}, {self.y})")
+    }
+}
+
+impl Drawable for Shape {
+    fn draw(self) {
+        match self {
+            Shape.Circle(center, radius) => {
+                print("Drawing circle at ({center.x}, {center.y}) with radius {radius}")
+            },
+            Shape.Rectangle(top_left, width, height) => {
+                print("Drawing rectangle at ({top_left.x}, {top_left.y}) size {width}x{height}")
+            },
+            Shape.Triangle(p1, p2, p3) => {
+                print("Drawing triangle with vertices ({p1.x},{p1.y}), ({p2.x},{p2.y}), ({p3.x},{p3.y})")
+            }
+        }
+    }
+}
+
+// ============ Classes (When Mutability Needed) ============
+
+class Counter {
+    var count: Int
+    step: Int
+    
+    fn new(initial: Int = 0, step: Int = 1) -> Counter {
+        Counter { count: initial, step }
+    }
+    
+    fn increment(mut self) {
+        self.count += self.step
+    }
+    
+    fn decrement(mut self) {
+        self.count -= self.step
+    }
+    
+    fn reset(mut self) {
+        self.count = 0
+    }
+    
+    fn get(self) -> Int {
+        self.count
+    }
+}
+
+// ============ Inheritance ============
+
+class Animal {
+    name: String
+    var age: Int
+    
+    fn new(name: String, age: Int) -> Animal {
+        Animal { name, age }
+    }
+    
+    fn speak(self) -> String {
+        "..."
+    }
+    
+    fn describe(self) -> String {
+        "{self.name} is {self.age} years old"
+    }
+    
+    fn have_birthday(mut self) {
+        self.age += 1
+    }
+}
+
+class Dog extends Animal {
+    breed: String
+    
+    fn new(name: String, age: Int, breed: String) -> Dog {
+        Dog { 
+            ...super.new(name, age),
+            breed 
+        }
+    }
+    
+    override fn speak(self) -> String {
+        "Woof! Woof!"
+    }
+    
+    fn fetch(self) {
+        print("{self.name} fetches the ball!")
+    }
+}
+
+class Cat extends Animal {
+    indoor: Bool
+    
+    fn new(name: String, age: Int, indoor: Bool = true) -> Cat {
+        Cat {
+            ...super.new(name, age),
+            indoor
+        }
+    }
+    
+    override fn speak(self) -> String {
+        "Meow!"
+    }
+    
+    fn purr(self) {
+        print("{self.name} purrs contentedly...")
+    }
+}
+
+// ============ Generic Class ============
+
+class Stack[T] {
+    var items: MutList[T]
+    
+    fn new() -> Stack[T] {
+        Stack { items: MutList([]) }
+    }
+    
+    fn push(mut self, item: T) {
+        self.items.append(item)
+    }
+    
+    fn pop(mut self) -> Option[T] {
+        if self.items.is_empty() {
+            None
+        } else {
+            Some(self.items.pop())
+        }
+    }
+    
+    fn peek(self) -> Option[T] {
+        if self.items.is_empty() {
+            None
+        } else {
+            Some(self.items.last())
+        }
+    }
+    
+    fn is_empty(self) -> Bool {
+        self.items.is_empty()
+    }
+    
+    fn size(self) -> Int {
+        self.items.len()
+    }
+}
+
+// ============ Main ============
+
+fn main() {
+    print("=== Structs ===")
+    let origin = Point.origin()
+    let p1 = Point.new(3.0, 4.0)
+    let p2 = p1.translate(2.0, 1.0)
+    
+    print("Origin: ({origin.x}, {origin.y})")
+    print("P1: ({p1.x}, {p1.y})")
+    print("P1 distance from origin: {p1.distance_from_origin()}")
+    print("P2 (P1 translated): ({p2.x}, {p2.y})")
+    print("Distance P1 to P2: {p1.distance_to(p2)}")
+    
+    // Using 'with' for immutable updates
+    let p3 = p1 with { x: 10.0 }
+    print("P3 (P1 with new x): ({p3.x}, {p3.y})")
+    
+    print("\n=== Generic Struct ===")
+    let pair = Pair.new(42, "answer")
+    print("Pair: ({pair.first}, {pair.second})")
+    
+    let swapped = pair.swap()
+    print("Swapped: ({swapped.first}, {swapped.second})")
+    
+    print("\n=== Enums ===")
+    let red = Color.Red
+    let custom = Color.RGB(128, 64, 255)
+    
+    print("Red as hex: {red.to_hex()}")
+    print("Custom as hex: {custom.to_hex()}")
+    
+    let circle = Shape.Circle(Point.origin(), 5.0)
+    let rect = Shape.Rectangle(Point.new(0.0, 0.0), 10.0, 5.0)
+    
+    print("Circle area: {circle.area()}")
+    print("Rectangle area: {rect.area()}")
+    
+    print("\n=== Traits ===")
+    let point = Point.new(5.0, 5.0)
+    point.draw()
+    point.draw_with_color(Color.Blue)
+    
+    circle.draw()
+    rect.draw()
+    
+    print("\n=== Classes (Mutable) ===")
+    var counter = Counter.new(step: 5)
+    print("Initial: {counter.get()}")
+    
+    counter.increment()
+    print("After increment: {counter.get()}")
+    
+    counter.increment()
+    counter.increment()
+    print("After two more: {counter.get()}")
+    
+    counter.reset()
+    print("After reset: {counter.get()}")
+    
+    print("\n=== Inheritance ===")
+    var dog = Dog.new("Rex", 3, "Labrador")
+    var cat = Cat.new("Whiskers", 5)
+    
+    print(dog.describe())
+    print("Dog says: {dog.speak()}")
+    dog.fetch()
+    
+    print(cat.describe())
+    print("Cat says: {cat.speak()}")
+    cat.purr()
+    
+    dog.have_birthday()
+    print("After birthday: {dog.describe()}")
+    
+    print("\n=== Generic Class ===")
+    var stack = Stack[Int].new()
+    
+    stack.push(10)
+    stack.push(20)
+    stack.push(30)
+    
+    print("Stack size: {stack.size()}")
+    print("Top: {stack.peek()}")
+    
+    print("Pop: {stack.pop()}")
+    print("Pop: {stack.pop()}")
+    print("Stack size now: {stack.size()}")
+}
