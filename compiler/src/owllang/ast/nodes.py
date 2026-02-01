@@ -44,6 +44,8 @@ class TokenType(Enum):
     LET = auto()
     MUT = auto()  # mut (mutable)
     WHILE = auto()  # while
+    BREAK = auto()  # break
+    CONTINUE = auto()  # continue
     FROM = auto()
     PYTHON = auto()
     IMPORT = auto()
@@ -350,6 +352,20 @@ class WhileStmt(Stmt):
 
     condition: Expr
     body: list[Stmt]
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class BreakStmt(Stmt):
+    """Break statement: break"""
+
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class ContinueStmt(Stmt):
+    """Continue statement: continue"""
+
     span: Optional[Span] = field(default=None, compare=False)
 
 

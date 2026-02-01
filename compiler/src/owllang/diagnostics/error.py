@@ -288,3 +288,21 @@ def assignment_to_immutable_error(name: str, span: Span) -> DiagnosticError:
         message=f"cannot assign to immutable variable `{name}`",
         span=span,
     ).with_hint(f"consider declaring with `let mut {name}` to make it mutable")
+
+
+def break_outside_loop_error(span: Span) -> DiagnosticError:
+    """Create an error for break statement outside of a loop."""
+    return DiagnosticError(
+        code=ErrorCode.BREAK_OUTSIDE_LOOP.value,
+        message="`break` outside of loop",
+        span=span,
+    ).with_hint("`break` can only be used inside `while` loops")
+
+
+def continue_outside_loop_error(span: Span) -> DiagnosticError:
+    """Create an error for continue statement outside of a loop."""
+    return DiagnosticError(
+        code=ErrorCode.CONTINUE_OUTSIDE_LOOP.value,
+        message="`continue` outside of loop",
+        span=span,
+    ).with_hint("`continue` can only be used inside `while` loops")

@@ -1,0 +1,84 @@
+// Example: Break and Continue
+// Demonstrates loop control flow with break and continue
+
+// Sum only odd numbers up to n, skip multiples of 3
+fn sum_odd_skip_3(n: Int) -> Int {
+    let mut sum = 0
+    let mut i = 0
+    while i <= n {
+        i = i + 1
+        
+        // Skip even numbers
+        if i % 2 == 0 {
+            continue
+        }
+        
+        // Skip multiples of 3
+        if i % 3 == 0 {
+            continue
+        }
+        
+        sum = sum + i
+    }
+    sum
+}
+
+// Find first number greater than target
+fn find_first_gt(target: Int, limit: Int) -> Int {
+    let mut i = 0
+    while i <= limit {
+        i = i + 1
+        if i > target {
+            return i
+        }
+    }
+    -1
+}
+
+// Count down with early exit
+fn countdown_with_abort(start: Int, abort_at: Int) -> Void {
+    let mut i = start
+    while i > 0 {
+        if i == abort_at {
+            print("Aborted!")
+            break
+        }
+        print(i)
+        i = i - 1
+    }
+    print("Done")
+}
+
+// Search for a value
+fn contains(target: Int, limit: Int) -> Bool {
+    let mut i = 0
+    while i <= limit {
+        if i == target {
+            return true
+        }
+        i = i + 1
+    }
+    false
+}
+
+fn main() {
+    // Test sum with continue
+    print("Sum of odd numbers (skipping multiples of 3) up to 15:")
+    print(sum_odd_skip_3(15))  // 1+5+7+11+13 = 37
+    
+    // Test find with return
+    print("First number greater than 5:")
+    print(find_first_gt(5, 10))  // 6
+    
+    // Countdown with abort
+    print("Countdown from 5, abort at 3:")
+    countdown_with_abort(5, 3)
+    
+    // Search test
+    print("Contains 7 in 0-10:")
+    if contains(7, 10) {
+        print("yes")
+    } else {
+        print("no")
+    }
+}

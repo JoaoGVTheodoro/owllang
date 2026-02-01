@@ -69,6 +69,8 @@ class ErrorCode(Enum):
     UNREACHABLE_CODE = "E0502"
     NON_EXHAUSTIVE_MATCH = "E0503"
     INVALID_PATTERN = "E0504"
+    BREAK_OUTSIDE_LOOP = "E0505"
+    CONTINUE_OUTSIDE_LOOP = "E0506"
 
 
 class WarningCode(Enum):

@@ -35,6 +35,8 @@ class Lexer:
         'let': TokenType.LET,
         'mut': TokenType.MUT,
         'while': TokenType.WHILE,
+        'break': TokenType.BREAK,
+        'continue': TokenType.CONTINUE,
         'from': TokenType.FROM,
         'python': TokenType.PYTHON,
         'import': TokenType.IMPORT,

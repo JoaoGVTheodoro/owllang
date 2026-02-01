@@ -32,6 +32,8 @@ from .error import (
     match_not_exhaustive_error,
     match_invalid_pattern_error,
     assignment_to_immutable_error,
+    break_outside_loop_error,
+    continue_outside_loop_error,
 )
 from .warning import (
     Warning,

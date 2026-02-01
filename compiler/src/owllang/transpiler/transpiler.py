@@ -13,7 +13,7 @@ from ..ast import (
     # Pattern Matching
     MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, IfStmt,
     # Declarations
     FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -281,6 +281,10 @@ class Transpiler:
             return self._transpile_return(stmt)
         elif isinstance(stmt, WhileStmt):
             return self._transpile_while(stmt)
+        elif isinstance(stmt, BreakStmt):
+            return self._transpile_break(stmt)
+        elif isinstance(stmt, ContinueStmt):
+            return self._transpile_continue(stmt)
         elif isinstance(stmt, IfStmt):
             return self._transpile_if(stmt)
         else:
@@ -319,6 +323,14 @@ class Transpiler:
         self.indent_level -= 1
         
         return "\n".join(lines)
+    
+    def _transpile_break(self, stmt: BreakStmt) -> str:
+        """Transpile: break → break"""
+        return self._indent("break")
+    
+    def _transpile_continue(self, stmt: ContinueStmt) -> str:
+        """Transpile: continue → continue"""
+        return self._indent("continue")
     
     def _transpile_let_with_try(self, var_name: str, try_expr: TryExpr) -> str:
         """

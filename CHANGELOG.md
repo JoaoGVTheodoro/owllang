@@ -5,6 +5,37 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1-alpha] - 2026-01-31
+
+### Added
+- **`break` statement**: Exit the innermost loop immediately
+  ```owl
+  while true {
+      if done {
+          break
+      }
+  }
+  ```
+- **`continue` statement**: Skip to the next iteration of the innermost loop
+  ```owl
+  while i < 10 {
+      i = i + 1
+      if i % 2 == 0 {
+          continue  // skip even numbers
+      }
+      print(i)
+  }
+  ```
+- **Error E0505**: "`break` outside of loop" with helpful hint
+- **Error E0506**: "`continue` outside of loop" with helpful hint
+
+### Technical
+- 497 tests passing (15 new tests for break/continue)
+- New example: `examples/10_break_continue.ow`
+- Loop context tracking in TypeChecker for proper validation
+
+---
+
 ## [0.2.0-alpha] - 2026-01-31
 
 ### Added

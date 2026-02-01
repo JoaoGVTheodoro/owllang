@@ -18,7 +18,7 @@ from ..ast import (
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -40,6 +40,8 @@ SYNC_TOKENS = frozenset({
     TokenType.RETURN,
     TokenType.IF,
     TokenType.WHILE,
+    TokenType.BREAK,
+    TokenType.CONTINUE,
     TokenType.FROM,
     TokenType.RBRACE,
 })
@@ -315,6 +317,10 @@ class Parser:
             return self._parse_if_stmt()
         elif self._check(TokenType.WHILE):
             return self._parse_while_stmt()
+        elif self._check(TokenType.BREAK):
+            return self._parse_break_stmt()
+        elif self._check(TokenType.CONTINUE):
+            return self._parse_continue_stmt()
         elif self._check(TokenType.IDENT) and self._peek_next_is(TokenType.ASSIGN):
             return self._parse_assign_stmt()
         else:
@@ -352,6 +358,18 @@ class Parser:
         condition = self._parse_expr()
         body = self._parse_block()
         return WhileStmt(condition, body)
+    
+    def _parse_break_stmt(self) -> BreakStmt:
+        """Parse: break"""
+        token = self._expect(TokenType.BREAK, "Expected 'break'")
+        span = token.span("<unknown>")
+        return BreakStmt(span=span)
+    
+    def _parse_continue_stmt(self) -> ContinueStmt:
+        """Parse: continue"""
+        token = self._expect(TokenType.CONTINUE, "Expected 'continue'")
+        span = token.span("<unknown>")
+        return ContinueStmt(span=span)
     
     def _parse_return_stmt(self) -> ReturnStmt:
         """Parse: return [expr]"""

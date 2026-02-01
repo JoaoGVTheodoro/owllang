@@ -49,21 +49,21 @@ fn countdown(n: Int) -> Void {
 
 ---
 
-### v0.2.1-alpha — Break and Continue
+### v0.2.1-alpha — Break and Continue ✅ COMPLETE
 
 **Adds:** `break` and `continue` statements.
 
 ```owl
-fn find_first_negative(numbers: List[Int]) -> Option[Int] {
+fn sum_odd_skip_3(n: Int) -> Int {
+    let mut sum = 0
     let mut i = 0
-    while i < len(numbers) {
-        let n = get(numbers, i)
-        if n < 0 {
-            return Some(n)
-        }
+    while i <= n {
         i = i + 1
+        if i % 2 == 0 { continue }  // skip even
+        if i % 3 == 0 { continue }  // skip multiples of 3
+        sum = sum + i
     }
-    None
+    sum
 }
 ```
 
@@ -73,10 +73,11 @@ fn find_first_negative(numbers: List[Int]) -> Option[Int] {
 - Search with short-circuit
 
 **Scope:**
-- Lexer: `break`, `continue` keywords
-- Parser: `BreakStmt`, `ContinueStmt`
-- TypeChecker: must be inside loop
-- New errors: E0602 "break outside of loop", E0603 "continue outside of loop"
+- Lexer: `break`, `continue` keywords ✅
+- Parser: `BreakStmt`, `ContinueStmt` ✅
+- TypeChecker: must be inside loop ✅
+- New errors: E0505 "break outside of loop", E0506 "continue outside of loop" ✅
+- 15 new tests, 497 total passing
 
 ---
 

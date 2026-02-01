@@ -23,7 +23,7 @@ from ..ast import (
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -43,6 +43,7 @@ from ..diagnostics import (
     try_not_result_error, try_outside_result_fn_error, try_error_type_mismatch_error,
     match_not_exhaustive_error, match_invalid_pattern_error,
     assignment_to_immutable_error,
+    break_outside_loop_error, continue_outside_loop_error,
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
@@ -189,6 +190,8 @@ class TypeChecker:
         self.env = TypeEnv()
         self.current_function_return_type: OwlType | None = None
         self.filename = filename
+        # Track if we're inside a loop (for break/continue validation)
+        self._loop_depth: int = 0
         # Track reported diagnostics to prevent duplicates: (code, line, column)
         self._reported_errors: set[tuple[str, int, int]] = set()
         self._reported_warnings: set[tuple[str, int, int]] = set()
@@ -490,6 +493,10 @@ class TypeChecker:
             self._check_return(stmt)
         elif isinstance(stmt, WhileStmt):
             self._check_while(stmt)
+        elif isinstance(stmt, BreakStmt):
+            self._check_break(stmt)
+        elif isinstance(stmt, ContinueStmt):
+            self._check_continue(stmt)
         elif isinstance(stmt, IfStmt):
             self._check_if(stmt)
     
@@ -566,9 +573,25 @@ class TypeChecker:
             span = self._get_span(stmt.condition)
             self._add_diagnostic(condition_not_bool_error(str(cond_type), span))
         
-        # Check body
-        for s in stmt.body:
-            self._check_stmt(s)
+        # Check body (inside loop context)
+        self._loop_depth += 1
+        try:
+            for s in stmt.body:
+                self._check_stmt(s)
+        finally:
+            self._loop_depth -= 1
+    
+    def _check_break(self, stmt: BreakStmt) -> None:
+        """Check break statement - must be inside a loop."""
+        if self._loop_depth == 0:
+            span = self._get_span(stmt)
+            self._add_diagnostic(break_outside_loop_error(span))
+    
+    def _check_continue(self, stmt: ContinueStmt) -> None:
+        """Check continue statement - must be inside a loop."""
+        if self._loop_depth == 0:
+            span = self._get_span(stmt)
+            self._add_diagnostic(continue_outside_loop_error(span))
     
     def _check_return(self, stmt: ReturnStmt) -> None:
         """Check return statement."""
