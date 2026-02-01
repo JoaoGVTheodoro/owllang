@@ -46,6 +46,7 @@ from ..diagnostics import (
     assignment_to_immutable_error,
     break_outside_loop_error, continue_outside_loop_error,
     for_in_not_list_error,
+    explicit_any_annotation_error,
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
@@ -69,6 +70,7 @@ class TypeError:
     column: int
     code: str = "E0000"  # Default code for legacy errors
     hints: list[str] | None = None  # Hints for fixing the error
+    notes: list[str] | None = None  # Explanatory notes
     
     def __str__(self) -> str:
         return f"[{self.line}:{self.column}] {self.message}"
@@ -82,6 +84,7 @@ class TypeError:
             column=diag.span.start.column,
             code=diag.code,
             hints=diag.hints if diag.hints else None,
+            notes=diag.notes if diag.notes else None,
         )
 
 
@@ -290,10 +293,18 @@ class TypeChecker:
         - lookup_parameterized_type() for Option[T], Result[T,E], List[T]
         
         Validates arity for parameterized types.
+        
+        Note: Any is explicitly rejected - it's an internal type for Python
+        interop boundaries only, not user-annotatable.
         """
         name = type_ann.name
         params = type_ann.params
         span = type_ann.span if type_ann.span else DUMMY_SPAN
+        
+        # Explicitly reject Any - it's an internal type for Python interop only
+        if name == "Any":
+            self._add_diagnostic(explicit_any_annotation_error(span))
+            return UNKNOWN
         
         # Try primitive type first (no parameters allowed)
         primitive = lookup_primitive_type(name)

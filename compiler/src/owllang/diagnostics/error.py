@@ -315,3 +315,16 @@ def for_in_not_list_error(actual_type: str, span: Span) -> DiagnosticError:
         message=f"cannot iterate over type `{actual_type}`",
         span=span,
     ).with_hint("`for` loop requires a `List[T]` to iterate over")
+
+
+def explicit_any_annotation_error(span: Span) -> DiagnosticError:
+    """Create an error for explicit Any type annotation.
+    
+    Any is an internal type for Python interop boundaries only.
+    Users cannot annotate variables, parameters, or return types with Any.
+    """
+    return DiagnosticError(
+        code=ErrorCode.EXPLICIT_ANY_ANNOTATION.value,
+        message="`Any` cannot be used in type annotations",
+        span=span,
+    ).with_note("`Any` is an internal type for Python interop only").with_hint("use a specific type like Int, String, or Option[T]")

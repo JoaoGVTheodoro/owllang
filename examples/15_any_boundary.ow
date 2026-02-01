@@ -1,0 +1,24 @@
+// OwlLang: Any Type Boundary
+// Demonstrates the boundaries of the Any type
+//
+// RULE: Any is internal - you CANNOT annotate with Any
+//
+// These would produce error E0316:
+//   let x: Any = 1               // ERROR
+//   fn get() -> Any { 1 }        // ERROR
+//   fn take(x: Any) { print(x) } // ERROR
+//
+// Any appears ONLY through Python imports and stays localized
+
+from python import random
+
+fn main() {
+    // Any comes from Python interop only
+    let result = random.random()
+    
+    // print() accepts Any, so this works
+    print("Random:", result)
+    
+    // Idiomatic OwlLang never mentions Any explicitly
+    // Use concrete types: Int, String, Option[T], Result[T, E]
+}

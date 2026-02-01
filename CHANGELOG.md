@@ -5,6 +5,63 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.7-alpha] - 2026-02-02
+
+### Any Boundary Formalization
+
+This release formalizes, proves, and shields the `Any` type as a controlled
+interop boundary. After this release, `Any` should be "conceptually closed".
+
+**No new syntax or semantic changes.** Only formalization and enforcement.
+
+### Added
+- **Error E0316**: `Any` cannot be used in type annotations
+  - `let x: Any = 1` → Error: "`Any` cannot be used in type annotations"
+  - `fn f() -> Any {}` → Error
+  - `fn f(x: Any) {}` → Error
+  - `Option[Any]`, `Result[Any, E]`, `List[Any]` → Error
+  - Clear note: "`Any` is an internal type for Python interop only"
+  - Clear hint: "use a specific type like Int, String, or Option[T]"
+
+- **Examples**:
+  - `examples/14_python_interop.ow`: Python import demonstration
+  - `examples/15_any_boundary.ow`: Any boundary demonstration
+
+- **Tests** (`test_v0247_features.py`):
+  - 12 new tests for Any boundary formalization
+  - Tests for blocking Any in: variables, return types, parameters, Option, Result, List
+  - Tests for Python imports still working
+  - Non-recurrence tests to prevent regression
+
+### Fixed
+- **CLI Notes**: Error notes are now printed (were silently dropped before)
+  - `TypeError.notes` field added to preserve diagnostic notes
+  - `TypeError.from_diagnostic()` now preserves notes
+  - CLI `output_human()` now prints notes for errors
+
+### Changed
+- **types.py**: `Any` removed from `PRIMITIVE_TYPES` registry
+  - Users cannot annotate with `Any` (it's not a valid type name)
+  - `Any` still exists internally for Python interop
+
+- **checker.py**: `_parse_type()` explicitly rejects `Any` with E0316
+  - Clear docstring explaining Any is not user-annotatable
+
+- **INVARIANTS.md**: Section 7 expanded
+  - Formalized boundaries with E0316 enforcement
+  - Added implementation details
+  - Added note: "Idiomatic OwlLang code NEVER mentions `Any` explicitly"
+
+- **LANGUAGE.md**: Rule 2 expanded
+  - Explicit statement: `Any` exists internally for Python interop only
+  - Explicit warning: attempting to annotate with `Any` produces E0316
+
+- **STABILITY.md**: Updated for v0.2.4.7-alpha
+
+### Test Count
+- **656 tests passing** (was 634 in v0.2.4.6)
+- 22 new tests (12 for Any boundary formalization + 10 for new examples)
+
 ## [0.2.4.6-alpha] - 2026-02-02
 
 ### Diagnostic Precision & Type Boundary Tightening

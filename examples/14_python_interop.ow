@@ -1,0 +1,18 @@
+// OwlLang: Python Interop
+// Demonstrates how OwlLang interacts with Python libraries
+// The Any type is INTERNAL - it appears only through Python imports
+
+// Import Python's random module
+from python import random
+
+fn main() {
+    // Python functions return Any type (internal)
+    // Any is localized - it doesn't propagate beyond immediate use
+    let value = random.randint(1, 100)
+    
+    // print() accepts Any, so we can print directly
+    print("Random value:", value)
+    
+    // For type-safe code, consider wrapping Python calls
+    // in functions with explicit return types
+}

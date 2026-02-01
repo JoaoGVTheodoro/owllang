@@ -29,6 +29,8 @@ VALID_EXAMPLES = [
     "11_for_loop.ow",
     "12_loop_range.ow",
     "13_break_continue.ow",
+    "14_python_interop.ow",
+    "15_any_boundary.ow",
 ]
 
 # Invalid examples that should fail type checking

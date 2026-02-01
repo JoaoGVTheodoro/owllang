@@ -420,7 +420,7 @@ def check_single_file(file_path: Path, no_warnings: bool = False) -> CheckResult
                 line=getattr(err, 'line', 1),
                 column=getattr(err, 'column', 1),
                 hints=getattr(err, 'hints', None) or [],
-                notes=[],
+                notes=getattr(err, 'notes', None) or [],
             ))
         
         # Convert warnings (sorted by line for deterministic order)
@@ -504,6 +504,8 @@ def output_human(
             print_error_stderr(f"Errors in {result.file}:")
             for err in result.errors:
                 print(f"  error[{err.code}]: {err.message}", file=sys.stderr)
+                for note in err.notes:
+                    print(f"    note: {note}", file=sys.stderr)
                 for hint in err.hints:
                     print(f"    hint: {hint}", file=sys.stderr)
         
@@ -514,6 +516,8 @@ def output_human(
             print(f"{color_code}{label} in {result.file}:{reset}", file=sys.stderr)
             for warn in result.warnings:
                 print(f"  warning[{warn.code}]: {warn.message}", file=sys.stderr)
+                for note in warn.notes:
+                    print(f"    note: {note}", file=sys.stderr)
                 for hint in warn.hints:
                     print(f"    hint: {hint}", file=sys.stderr)
     

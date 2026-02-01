@@ -58,13 +58,13 @@ ANY = OwlType("Any")  # For Python interop
 
 # Canonical mapping from type names to types.
 # Supports case-insensitive lookup via lookup_primitive_type().
+# Note: Any is NOT included - it's an internal type for Python interop only.
 PRIMITIVE_TYPES: dict[str, OwlType] = {
     "Int": INT,
     "Float": FLOAT,
     "String": STRING,
     "Bool": BOOL,
     "Void": VOID,
-    "Any": ANY,
 }
 
 # Alternative names for primitive types (for Python interop)

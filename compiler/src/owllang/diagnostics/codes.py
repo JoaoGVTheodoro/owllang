@@ -52,6 +52,7 @@ class ErrorCode(Enum):
     TRY_ERROR_TYPE_MISMATCH = "E0313"
     WRONG_TYPE_ARITY = "E0314"
     UNKNOWN_TYPE = "E0315"
+    EXPLICIT_ANY_ANNOTATION = "E0316"
     
     # Scope errors (E03xx continued)
     VARIABLE_REDEFINITION = "E0320"
@@ -118,6 +119,7 @@ ERROR_DESCRIPTIONS: dict[ErrorCode, str] = {
     ErrorCode.UNDEFINED_FUNCTION: "Function not defined",
     ErrorCode.ASSIGNMENT_TO_IMMUTABLE: "Cannot assign to immutable variable",
     ErrorCode.MISSING_RETURN: "Function must return a value on all paths",
+    ErrorCode.EXPLICIT_ANY_ANNOTATION: "Any type cannot be used in type annotations",
 }
 
 WARNING_DESCRIPTIONS: dict[WarningCode, str] = {

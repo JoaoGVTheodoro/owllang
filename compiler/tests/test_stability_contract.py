@@ -229,7 +229,10 @@ class TestLanguageSemanticsContract:
     """Test stable language semantics (STABILITY.md: 🟢 Stable)."""
     
     def test_core_types_valid(self, tmp_path: Path) -> None:
-        """Core types Int, Float, String, Bool, Void, Any are valid."""
+        """Core types Int, Float, String, Bool, Void are valid user-annotatable types.
+        
+        Note: Any is NOT included - it's an internal type for Python interop only.
+        """
         f = tmp_path / "types.ow"
         f.write_text("""
 fn test_int() -> Int { 42 }
@@ -237,7 +240,6 @@ fn test_float() -> Float { 3.14 }
 fn test_string() -> String { "hello" }
 fn test_bool() -> Bool { true }
 fn test_void() -> Void { }
-fn test_any() -> Any { 1 }
 fn main() {}
 """)
         result = run_cli("check", str(f))

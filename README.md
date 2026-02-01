@@ -3,7 +3,7 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.4.6--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.7--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-634%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
@@ -11,11 +11,12 @@
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.4.6-alpha** — diagnostic precision & type boundary tightening:
-- Full span propagation: all errors now point to exact source locations
-- Type system escape hatches documented (Any type behavior)
-- Zero hardcoded fallback positions in type checker
-- 634 tests including span regression tests
+This is **v0.2.4.7-alpha** — Any Boundary Formalization:
+- `Any` type is now formally blocked in user annotations (error E0316)
+- `Any` exists only for Python interop, never in idiomatic Owl code
+- New examples: `14_python_interop.ow`, `15_any_boundary.ow`
+- Notes now appear in CLI error output
+- 656 tests including Any boundary contract tests
 - Not recommended for production use yet
 
 See [LANGUAGE.md](docs/LANGUAGE.md) for the definitive language guide.

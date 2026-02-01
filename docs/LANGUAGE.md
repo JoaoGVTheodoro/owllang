@@ -59,7 +59,7 @@ let age: Int = 30       // Explicit annotation
 let items = [1, 2, 3]   // Inferred as List[Int]
 ```
 
-There is no `any` type for user code. Type errors are caught before the program runs.
+There is no `any` type for user code. The `Any` type exists internally for Python interop only — idiomatic OwlLang code never mentions `Any` explicitly. Attempting to annotate with `Any` produces error E0316. Type errors are caught before the program runs.
 
 ### 3. Functions Require Parameter Types
 

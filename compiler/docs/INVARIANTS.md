@@ -145,15 +145,25 @@ self.warnings = []
 - `Any` in conditions is allowed (bypasses Bool check)
 - Field access on `Any` returns `Any`
 
-**Boundaries**:
+**Boundaries** (formalized in v0.2.4.7):
 - **ALLOWED**: Using `Any` from Python imports
 - **ALLOWED**: Passing `Any` to functions expecting specific types
-- **NOT A UNIVERSAL WILDCARD**: Cannot be explicitly annotated by users (no `let x: Any = ...`)
+- **BLOCKED (E0316)**: Explicit `Any` annotations are compilation errors
+  - `let x: Any = 1` → Error
+  - `fn f() -> Any {}` → Error
+  - `fn f(x: Any) {}` → Error
+  - `Option[Any]`, `Result[Any, E]`, `List[Any]` → Error
 
 **Why "Escape Hatch" not "Top Type"**:
 - Unlike a true top type (e.g., `Object` in Java), `Any` silently suppresses type errors
 - It does not participate in normal subtyping relationships
 - It exists for FFI, not for polymorphism
+- Idiomatic OwlLang code NEVER mentions `Any` explicitly
+
+**Implementation Details**:
+- `Any` is NOT in `PRIMITIVE_TYPES` registry (users can't annotate with it)
+- `_parse_type()` explicitly rejects `Any` with error E0316
+- The `TypeError.from_diagnostic()` preserves notes explaining this is an internal type
 
 **Future Consideration**: May add warnings when `Any` propagates unexpectedly.
 

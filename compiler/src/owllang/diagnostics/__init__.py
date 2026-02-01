@@ -35,6 +35,7 @@ from .error import (
     break_outside_loop_error,
     continue_outside_loop_error,
     for_in_not_list_error,
+    explicit_any_annotation_error,
 )
 from .warning import (
     Warning,
@@ -81,6 +82,7 @@ __all__ = [
     "break_outside_loop_error",
     "continue_outside_loop_error",
     "for_in_not_list_error",
+    "explicit_any_annotation_error",
     # Warning
     "Warning",
     # Warning factory functions
