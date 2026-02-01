@@ -1,93 +1,129 @@
-# OwlLang Philosophy
+# OwlLang Design Philosophy
+
+> The principles that guide OwlLang's design.
+
+---
+
+## Core Beliefs
+
+### 1. Safe by Default
+
+Errors should be caught at compile time, not runtime.
+
+- Types are known before the program runs
+- Variables cannot change unless explicitly marked
+- Missing values (`Option`) and errors (`Result`) must be handled
+
+### 2. Explicit Over Implicit
+
+The reader should understand the code without hidden context.
+
+```owl
+let mut counter = 0   // Clearly mutable
+let total = 100       // Clearly immutable
+
+let result = risky_operation()
+match result {
+    Ok(value) => use(value),
+    Err(e) => handle(e)
+}
+// Error handling is visible
+```
+
+### 3. Small and Predictable
+
+A smaller language is easier to learn, easier to reason about, and has fewer edge cases.
+
+OwlLang has:
+- 5 primitive types
+- 2 algebraic types (Option, Result)
+- 1 collection type (List)
+- 3 loop constructs
+- 1 pattern matching construct
+
+That's it.
+
+### 4. Python Is a Friend
+
+The Python ecosystem is a treasure. OwlLang compiles to readable Python so you can:
+- Debug the output directly
+- Use any Python library
+- Integrate with existing tools
+
+```owl
+from python import json
+from python import { get } from requests
+
+let response = get("https://api.example.com")
+let data = json.loads(response.text)
+```
+
+### 5. Immutable First
+
+Mutability is a feature, not a default.
+
+```owl
+let x = 10        // Cannot change
+let mut y = 20    // Can change
+
+y = 25            // OK
+x = 15            // Error
+```
+
+This makes code easier to understand: you know a value won't change unless you see `mut`.
+
+### 6. Errors Are Values
+
+There are no exceptions in OwlLang. Operations that can fail return `Result`:
+
+```owl
+fn divide(a: Int, b: Int) -> Result[Int, String] {
+    if b == 0 {
+        Err("division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+```
+
+You must handle the error or propagate it with `?`.
+
+### 7. Absence Is Explicit
+
+There is no `null`. A value that might not exist is `Option`:
+
+```owl
+fn find(id: Int) -> Option[User] {
+    // Returns Some(user) or None
+}
+```
+
+You must handle both cases.
+
+---
+
+## What OwlLang Is Not
+
+- **Not a Python replacement**: It's a safer way to write Python-compatible code
+- **Not performance-focused**: It's about correctness, not speed
+- **Not feature-rich**: Simplicity is a feature
+- **Not production-ready**: It's still alpha
+
+---
 
 ## The Owl's Wisdom 🦉
 
-OwlLang is built on the belief that a programming language should be:
+> *"A wise owl knows what it doesn't need."*
 
-1. **Safe by default** - Errors should be caught at compile time, not runtime
-2. **Expressive** - Common patterns should be concise
-3. **Interoperable** - The Python ecosystem is a treasure, not baggage
-4. **Modern** - Concurrency, immutability, and type safety are not optional extras
+OwlLang deliberately excludes:
+- Inheritance
+- Exceptions
+- Null values
+- Implicit type coercion
+- Runtime metaprogramming
 
-## Core Principles
+These features add complexity without adding safety.
 
-### 1. Clarity Over Brevity (But Brevity When Obvious)
+---
 
-```owl
-// Good: Clear and concise
-let users = fetch_users() |> filter(_.active) |> map(_.name)
-
-// Bad: Too clever
-let u = fu() |> f(_.a) |> m(_.n)
-```
-
-### 2. Types Are Living Documentation
-
-```owl
-// Types make intent clear
-fn calculate_discount(price: Decimal, rate: Percent) -> Decimal {
-    price * (1 - rate.to_decimal())
-}
-```
-
-### 3. Errors Should Be Impossible, Not Improbable
-
-```owl
-// Option types prevent null pointer exceptions
-fn find_user(id: Int) -> Option[User] {
-    users.get(id)  // Returns Some(user) or None
-}
-
-// Must handle both cases
-match find_user(42) {
-    Some(user) => print(user.name),
-    None => print("User not found")
-}
-```
-
-### 4. Concurrency Is a Right, Not a Privilege
-
-```owl
-// Easy parallel execution
-let results = urls
-    |> parallel_map(fetch)
-    |> await_all()
-```
-
-### 5. Python Is a Friend
-
-```owl
-// Seamless Python interop
-from python import numpy as np
-from python import pandas as pd
-
-let df = pd.DataFrame({"a": [1, 2, 3]})
-```
-
-### 6. Immutable First, Mutable When Necessary
-
-```owl
-let x = 10        // Immutable by default
-var y = 20        // Explicitly mutable
-
-x = 15            // Compile error!
-y = 25            // OK
-```
-
-### 7. Option Over Null
-
-```owl
-// No null in OwlLang
-let maybe_value: Option[Int] = Some(42)
-let nothing: Option[Int] = None
-
-// Safe access
-let result = maybe_value.unwrap_or(0)
-```
-
-## What OwlLang Is NOT
-
-- **Not "Python with different syntax"** - We have our own identity
-- **Not a Python replacement** - We're a Python companion
-- **Not academic** - We're practical and production-ready
-- **Not exclusive** - We embrace the Python ecosystem fully
+*See [LANGUAGE.md](LANGUAGE.md) for the complete mental model.*

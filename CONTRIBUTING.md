@@ -29,7 +29,6 @@ Help improve our docs:
 
 - Fix typos or unclear explanations
 - Add examples
-- Translate documentation
 - Write tutorials
 
 ### 🔧 Code Contributions
@@ -40,65 +39,69 @@ Ready to code? Here's how:
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Make your changes
 4. Add tests
-5. Run the test suite (`cargo test`)
+5. Run the test suite (`pytest`)
 6. Submit a pull request
 
 ## Development Setup
 
 ### Prerequisites
 
-- Rust (latest stable)
 - Python 3.10+
+- pip
 - Git
 
 ### Building
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/owl.git
-cd owl
+git clone https://github.com/YOUR_USERNAME/owl-lang.git
+cd owl-lang
 
-# Build
-cargo build
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install in development mode
+pip install -e "./compiler[dev]"
 
 # Run tests
-cargo test
+pytest compiler/tests
 
 # Run the compiler
-cargo run -- run examples/hello.owl
+owl run examples/00_hello_world.ow
 ```
 
 ### Project Structure
 
 ```
-owl/
-├── src/
-│   ├── lexer/        # Tokenization
-│   ├── parser/       # AST generation
-│   ├── typechecker/  # Type analysis
-│   ├── codegen/      # Python transpiler
-│   └── cli/          # Command-line interface
-├── tests/            # Test suite
-├── examples/         # Example programs
-├── docs/             # Documentation
-└── spec/             # Language specification
+owl-lang/
+├── compiler/
+│   └── src/owllang/
+│       ├── lexer/        # Tokenization
+│       ├── parser/       # AST generation  
+│       ├── typechecker/  # Type checking
+│       ├── transpiler/   # Python code generation
+│       ├── diagnostics/  # Errors and warnings
+│       └── cli.py        # Command-line interface
+├── examples/             # Example programs
+├── docs/                 # Documentation
+└── spec/                 # Language specification
 ```
 
 ## Code Style
 
-### Rust Code
+### Python Code
 
-- Follow `rustfmt` conventions
-- Use `clippy` for linting
-- Write doc comments for public APIs
+- Follow PEP 8
+- Use type hints
 - Keep functions small and focused
+- Write docstrings for public APIs
 
-### OwlLang Code
+### OwlLang Code (Examples)
 
 - Use 4-space indentation
-- Follow the examples in `examples/`
 - Keep lines under 100 characters
-- Add comments for complex logic
+- Add comments explaining the example
 
 ## Pull Request Guidelines
 
@@ -106,7 +109,6 @@ owl/
 2. **Add tests** - All new features need tests
 3. **Update docs** - If adding features, update documentation
 4. **Write good commit messages** - Clear, descriptive messages
-5. **Be patient** - Reviews may take time
 
 ### Commit Message Format
 
@@ -116,14 +118,14 @@ owl/
 <longer description if needed>
 ```
 
-Types: `feat`, `fix`, `docs`, `test`, `refactor`, `style`, `chore`
+Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
 
 Example:
 ```
-feat: add pipe operator support
+feat: add for-in loop support
 
-Implements the |> pipe operator for chaining function calls.
-Adds parser support and transpiles to nested function calls in Python.
+Implements iteration over List[T] with for-in syntax.
+Adds parser support and transpiles to Python for loop.
 ```
 
 ## Testing
@@ -132,41 +134,41 @@ Adds parser support and transpiles to nested function calls in Python.
 
 ```bash
 # All tests
-cargo test
+pytest compiler/tests
 
-# Specific test
-cargo test test_name
+# Specific test file
+pytest compiler/tests/test_typechecker.py
 
-# With output
-cargo test -- --nocapture
+# With verbose output
+pytest compiler/tests -v
+
+# Stop on first failure
+pytest compiler/tests -x
 ```
 
 ### Writing Tests
 
-```rust
-#[test]
-fn test_parser_function_declaration() {
-    let source = "fn add(a: Int, b: Int) -> Int { a + b }";
-    let ast = parse(source).unwrap();
-    
-    assert!(matches!(ast[0], Stmt::FnDecl { .. }));
-}
+```python
+def test_parser_function_declaration():
+    source = "fn add(a: Int, b: Int) -> Int { a + b }"
+    result = compile_source(source)
+    assert "def add(a: int, b: int) -> int:" in result
 ```
 
-## Community
+## Architecture
 
-- **Discussions**: GitHub Discussions for questions and ideas
-- **Issues**: GitHub Issues for bugs and feature requests
-- **Chat**: Discord server (coming soon)
+See [docs/COMPILER.md](docs/COMPILER.md) for compiler internals.
 
-## Code of Conduct
+Key concepts:
+- **Lexer**: Characters → Tokens
+- **Parser**: Tokens → AST
+- **TypeChecker**: AST → Errors/Warnings
+- **Transpiler**: AST → Python
 
-Be respectful and inclusive. We're all here to learn and build something great together.
+## Questions?
 
-## License
+- Open an issue for questions
+- Check existing issues for answers
+- Read the documentation
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
----
-
-Thank you for helping make OwlLang better! 🦉
+Thank you for contributing! 🦉

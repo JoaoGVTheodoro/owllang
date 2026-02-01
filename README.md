@@ -3,25 +3,24 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.4.3--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.4--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-566%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
+[![Tests](https://img.shields.io/badge/tests-587%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
 **OwlLang** is an experimental programming language with a strong type system, first-class error handling via `Option` and `Result` types, and seamless Python interoperability. It transpiles to clean, readable Python code.
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.4.3-alpha** — an internal architecture hardening release:
-- Complete iteration model: `while`, `for-in`, `loop`, `range`
-- Lists with `len`, `get`, `push`, `is_empty`
-- Local mutability with `let mut`
-- Centralized type and built-in registries
-- Compiler ready for Structs
+This is **v0.2.4.4-alpha** — a documentation and mental model release:
+- Clear language contract in [LANGUAGE.md](docs/LANGUAGE.md)
+- Accurate, minimal documentation
+- Cleaned examples with logical progression
+- Compiler ready for Structs (coming in v0.2.5)
 - Not recommended for production use yet
 
+See [LANGUAGE.md](docs/LANGUAGE.md) for the definitive language guide.
 See [STABILITY.md](docs/STABILITY.md) for stability guarantees.
 See [INVARIANTS.md](docs/INVARIANTS.md) for language invariants.
-See [COMPILER.md](docs/COMPILER.md) for compiler architecture.
 
 ---
 
@@ -205,21 +204,26 @@ owl ast program.ow               # Show AST
 
 The [examples/](examples/) directory contains working examples:
 
-| File                        | Description          |
-| --------------------------- | -------------------- |
-| `00_hello_world.ow`         | Basic hello world    |
-| `01_variables_and_types.ow` | Type annotations     |
-| `02_functions.ow`           | Function definitions |
-| `03_if_expression.ow`       | If as expression     |
-| `04_option_basic.ow`        | Option type usage    |
-| `05_result_basic.ow`        | Result type usage    |
-| `07_python_import.ow`       | Python interop       |
-| `08_try_operator.ow`        | Error propagation    |
+| File                   | Description          |
+| ---------------------- | -------------------- |
+| `01_hello_world.ow`    | Basic hello world    |
+| `02_variables.ow`      | Variables & types    |
+| `03_functions.ow`      | Function definitions |
+| `04_if_expression.ow`  | If as expression     |
+| `05_option.ow`         | Option type usage    |
+| `06_result.ow`         | Result type usage    |
+| `07_try_operator.ow`   | Error propagation    |
+| `08_match.ow`          | Pattern matching     |
+| `09_lists.ow`          | Lists & operations   |
+| `10_while_loop.ow`     | While loops          |
+| `11_for_loop.ow`       | For-in loops         |
+| `12_loop_range.ow`     | Loop & range         |
+| `13_break_continue.ow` | Break & continue     |
 
 Run any example:
 
 ```bash
-owl run examples/00_hello_world.ow
+owl run examples/01_hello_world.ow
 ```
 
 ---
@@ -244,17 +248,18 @@ To set expectations clearly:
 cd compiler
 pip install -e ".[dev]"
 pytest -v
-# 440 tests passing
+# 587 tests passing
 ```
 
 ---
 
 ## 📚 Documentation
 
+- [Language Guide](docs/LANGUAGE.md) — What OwlLang is (the complete mental model)
 - [Philosophy](docs/PHILOSOPHY.md) — Why OwlLang exists
-- [Syntax Guide](docs/SYNTAX.md) — Language reference
-- [Architecture](docs/ARCHITECTURE.md) — Compiler internals
+- [Syntax Reference](docs/SYNTAX.md) — Grammar and constructs
 - [Stability Contract](docs/STABILITY.md) — What is guaranteed stable
+- [Compiler Internals](docs/COMPILER.md) — Architecture for contributors
 
 ---
 
@@ -271,6 +276,6 @@ MIT License — see [LICENSE](LICENSE).
 ---
 
 <p align="center">
-  <b>🦉 OwlLang v0.2.1-alpha</b><br>
+  <b>🦉 OwlLang v0.2.4.4-alpha</b><br>
   <i>"Wisdom comes from seeing clearly in the dark"</i>
 </p>

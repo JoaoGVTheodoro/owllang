@@ -1,204 +1,24 @@
-// ===========================================
-// OwlLang Example: Functions
-// ===========================================
+// OwlLang: Functions
+// Demonstrates functions with parameters and implicit return
 
-// ============ Basic Functions ============
-
-// Simple function with explicit return type
-fn greet(name: String) -> String {
-    "Hello, {name}!"
-}
-
-// Multiple parameters
 fn add(a: Int, b: Int) -> Int {
     a + b
 }
 
-// No return value (returns Unit)
-fn log_message(message: String) {
-    print("[LOG] {message}")
+fn greet(name: String) -> String {
+    "Hello, " + name + "!"
 }
 
-// Single expression function (shorthand)
-fn double(x: Int) -> Int = x * 2
-
-fn is_even(n: Int) -> Bool = n % 2 == 0
-
-fn square(n: Int) -> Int = n * n
-
-// ============ Default Parameters ============
-
-fn greet_with_style(name: String, greeting: String = "Hello", punctuation: String = "!") -> String {
-    "{greeting}, {name}{punctuation}"
+fn is_positive(n: Int) -> Bool {
+    n > 0
 }
-
-// ============ Named Arguments ============
-
-fn create_user(name: String, age: Int, email: String, active: Bool = true) -> Map[String, Any] {
-    {
-        "name": name,
-        "age": age,
-        "email": email,
-        "active": active
-    }
-}
-
-// ============ Lambda Functions ============
-
-fn demonstrate_lambdas() {
-    // Full lambda syntax
-    let add_lambda = |a: Int, b: Int| -> Int { a + b }
-    print("Lambda add: {add_lambda(3, 4)}")
-    
-    // Type inference in lambdas
-    let multiply = |x, y| x * y
-    print("Lambda multiply: {multiply(5, 6)}")
-    
-    // Single expression lambda
-    let increment = |x| x + 1
-    print("Lambda increment: {increment(10)}")
-    
-    // Placeholder syntax (underscore)
-    let numbers = [1, 2, 3, 4, 5]
-    let doubled = numbers.map(_ * 2)
-    let evens = numbers.filter(_ % 2 == 0)
-    let sum = numbers.fold(0, _ + _)
-    
-    print("Doubled: {doubled}")
-    print("Evens: {evens}")
-    print("Sum: {sum}")
-}
-
-// ============ Higher-Order Functions ============
-
-fn apply_twice[T](f: (T) -> T, value: T) -> T {
-    f(f(value))
-}
-
-fn create_multiplier(factor: Int) -> (Int) -> Int {
-    |x| x * factor
-}
-
-fn compose[A, B, C](f: (B) -> C, g: (A) -> B) -> (A) -> C {
-    |x| f(g(x))
-}
-
-// ============ Pipe Operator ============
-
-fn process_data(data: List[Int]) -> Int {
-    data
-        |> filter(_ > 0)
-        |> map(_ * 2)
-        |> filter(_ < 100)
-        |> sum()
-}
-
-// Alternative without pipe (more nested)
-fn process_data_nested(data: List[Int]) -> Int {
-    sum(filter(map(filter(data, |x| x > 0), |x| x * 2), |x| x < 100))
-}
-
-// ============ Generic Functions ============
-
-fn first[T](list: List[T]) -> Option[T] {
-    match list {
-        [] => None,
-        [head, ...] => Some(head)
-    }
-}
-
-fn last[T](list: List[T]) -> Option[T] {
-    match list {
-        [] => None,
-        [single] => Some(single),
-        [_, ...rest] => last(rest)
-    }
-}
-
-fn map_option[T, U](opt: Option[T], f: (T) -> U) -> Option[U] {
-    match opt {
-        Some(value) => Some(f(value)),
-        None => None
-    }
-}
-
-// ============ Recursive Functions ============
-
-fn factorial(n: Int) -> Int {
-    match n {
-        0 => 1,
-        1 => 1,
-        _ => n * factorial(n - 1)
-    }
-}
-
-fn fibonacci(n: Int) -> Int {
-    match n {
-        0 => 0,
-        1 => 1,
-        _ => fibonacci(n - 1) + fibonacci(n - 2)
-    }
-}
-
-// Tail-recursive (optimized)
-fn factorial_tail(n: Int, acc: Int = 1) -> Int {
-    match n {
-        0 => acc,
-        _ => factorial_tail(n - 1, n * acc)
-    }
-}
-
-// ============ Main ============
 
 fn main() {
-    print("=== Basic Functions ===")
-    print(greet("World"))
-    print("3 + 5 = {add(3, 5)}")
-    log_message("This is a log")
-    print("double(21) = {double(21)}")
-    print("is_even(42) = {is_even(42)}")
-    
-    print("\n=== Default Parameters ===")
-    print(greet_with_style("Alice"))
-    print(greet_with_style("Bob", "Hi"))
-    print(greet_with_style("Charlie", "Hey", "?"))
-    
-    print("\n=== Named Arguments ===")
-    let user = create_user(
-        name: "Alice",
-        age: 30,
-        email: "alice@example.com"
-    )
-    print("User: {user}")
-    
-    print("\n=== Lambdas ===")
-    demonstrate_lambdas()
-    
-    print("\n=== Higher-Order Functions ===")
-    let result = apply_twice(|x| x * 2, 3)
-    print("apply_twice(double, 3) = {result}")
-    
-    let triple = create_multiplier(3)
-    print("triple(10) = {triple(10)}")
-    
-    let add_one_then_double = compose(|x| x * 2, |x| x + 1)
-    print("add_one_then_double(5) = {add_one_then_double(5)}")
-    
-    print("\n=== Pipe Operator ===")
-    let data = [-5, -2, 0, 3, 7, 15, 25, 60]
-    let processed = process_data(data)
-    print("Processed data: {processed}")
-    
-    print("\n=== Generic Functions ===")
-    let numbers = [10, 20, 30]
-    print("first([10, 20, 30]) = {first(numbers)}")
-    print("last([10, 20, 30]) = {last(numbers)}")
-    
-    let maybe_doubled = map_option(Some(21), |x| x * 2)
-    print("map_option(Some(21), double) = {maybe_doubled}")
-    
-    print("\n=== Recursive Functions ===")
-    print("factorial(5) = {factorial(5)}")
-    print("factorial_tail(5) = {factorial_tail(5)}")
-    print("fibonacci(10) = {fibonacci(10)}")
+    let sum = add(10, 20)
+    let greeting = greet("Owl")
+    let positive = is_positive(42)
+
+    print(sum)
+    print(greeting)
+    print(positive)
 }

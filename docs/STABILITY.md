@@ -184,6 +184,7 @@ If you believe a stability guarantee has been violated:
 
 | Version        | Stability Changes                      |
 | -------------- | -------------------------------------- |
+| v0.2.4.4-alpha | Documentation reset, LANGUAGE.md       |
 | v0.2.4.3-alpha | Internal architecture, type registries |
 | v0.2.4.2-alpha | Documentation fixes, code audit        |
 | v0.2.4.1-alpha | Added INVARIANTS.md, updated v0.2.x    |
@@ -194,4 +195,4 @@ If you believe a stability guarantee has been violated:
 
 ---
 
-*This document is part of the OwlLang v0.2.4.3-alpha release.*
+*This document is part of the OwlLang v0.2.4.4-alpha release.*

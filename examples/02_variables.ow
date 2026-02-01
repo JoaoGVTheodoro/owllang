@@ -1,97 +1,21 @@
-// ===========================================
-// OwlLang Example: Variables and Types
-// ===========================================
+// OwlLang: Variables and Types
+// Demonstrates let bindings and basic types
 
 fn main() {
-    // ============ Immutable Variables (default) ============
+    // Type inference
     let name = "OwlLang"
     let version = 1
     let pi = 3.14159
-    
-    // With explicit type annotations
+    let active = true
+
+    // Explicit type annotations
     let count: Int = 42
-    let message: String = "Hello, OwlLang!"
-    let is_ready: Bool = true
-    
-    print("Language: {name} v{version}")
-    print("Pi: {pi}")
-    print("Count: {count}")
-    print("Message: {message}")
-    print("Ready: {is_ready}")
-    
-    // ============ Mutable Variables ============
-    var counter = 0
-    print("\nInitial counter: {counter}")
-    
-    counter = counter + 1
-    print("After increment: {counter}")
-    
-    counter += 10
-    print("After adding 10: {counter}")
-    
-    // ============ Constants (compile-time) ============
-    const MAX_USERS: Int = 1000
-    const API_VERSION: String = "v2"
-    
-    print("\nMax users: {MAX_USERS}")
-    print("API version: {API_VERSION}")
-    
-    // ============ Option Types (no null!) ============
-    let some_value: Option[Int] = Some(42)
-    let no_value: Option[Int] = None
-    
-    print("\nOption with value: {some_value}")
-    print("Option without value: {no_value}")
-    
-    // Safe access with unwrap_or
-    let value1 = some_value.unwrap_or(0)
-    let value2 = no_value.unwrap_or(0)
-    print("Unwrapped values: {value1}, {value2}")
-    
-    // ============ Collections ============
-    
-    // Lists (immutable)
-    let numbers = [1, 2, 3, 4, 5]
-    let names: List[String] = ["Alice", "Bob", "Charlie"]
-    
-    print("\nNumbers: {numbers}")
-    print("Names: {names}")
-    print("First number: {numbers[0]}")
-    print("List length: {numbers.len()}")
-    
-    // Maps
-    let scores: Map[String, Int] = {
-        "Alice": 100,
-        "Bob": 85,
-        "Charlie": 92
-    }
-    
-    print("\nScores: {scores}")
-    print("Alice's score: {scores["Alice"]}")
-    
-    // Tuples
-    let point = (10, 20)
-    let (x, y) = point  // Destructuring
-    print("\nPoint: ({x}, {y})")
-    
-    // ============ Type Inference ============
-    let inferred_int = 42           // Inferred as Int
-    let inferred_float = 3.14       // Inferred as Float
-    let inferred_list = [1, 2, 3]   // Inferred as List[Int]
-    
-    print("\nInferred types work automatically!")
-    
-    // ============ Destructuring ============
-    let person = {
-        "name": "Alice",
-        "age": 30,
-        "city": "New York"
-    }
-    
-    let {name: person_name, age, city} = person
-    print("\n{person_name} is {age} years old, lives in {city}")
-    
-    // List destructuring
-    let [first, second, ...rest] = [1, 2, 3, 4, 5]
-    print("First: {first}, Second: {second}, Rest: {rest}")
+    let message: String = "Hello"
+    let enabled: Bool = false
+    let ratio: Float = 0.75
+
+    print(name)
+    print(count)
+    print(pi)
+    print(active)
 }

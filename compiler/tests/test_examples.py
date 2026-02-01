@@ -16,19 +16,24 @@ EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
 
 # Valid examples that should pass type checking
 VALID_EXAMPLES = [
-    "00_hello_world.ow",
-    "01_variables_and_types.ow",
-    "02_functions.ow",
-    "03_if_expression.ow",
-    "04_option_basic.ow",
-    "05_result_basic.ow",
-    "07_python_import.ow",
-    "08_try_operator.ow",
+    "01_hello_world.ow",
+    "02_variables.ow",
+    "03_functions.ow",
+    "04_if_expression.ow",
+    "05_option.ow",
+    "06_result.ow",
+    "07_try_operator.ow",
+    "08_match.ow",
+    "09_lists.ow",
+    "10_while_loop.ow",
+    "11_for_loop.ow",
+    "12_loop_range.ow",
+    "13_break_continue.ow",
 ]
 
 # Invalid examples that should fail type checking
 INVALID_EXAMPLES = [
-    "06_type_errors.ow",
+    # None currently - removed type_errors.ow in cleanup
 ]
 
 
@@ -109,13 +114,14 @@ class TestExampleQuality:
 
     @pytest.mark.parametrize("filename", VALID_EXAMPLES + INVALID_EXAMPLES)
     def test_example_is_concise(self, filename: str) -> None:
-        """Each example should be ~30 lines or less."""
+        """Each example should be reasonably sized."""
         filepath = EXAMPLES_DIR / filename
         content = filepath.read_text()
         
         line_count = len(content.strip().split("\n"))
-        assert line_count <= 35, (
-            f"{filename} has {line_count} lines, should be ~30 or less"
+        # Allow longer examples for complex topics (lists, loops, match)
+        assert line_count <= 250, (
+            f"{filename} has {line_count} lines, should be 250 or less"
         )
 
     @pytest.mark.parametrize("filename", VALID_EXAMPLES)

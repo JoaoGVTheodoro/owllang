@@ -5,6 +5,56 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.4-alpha] - 2026-01-31
+
+### Language Contract, Mental Model & Documentation Reset
+
+This release defines **"what OwlLang is" from the user's perspective**.
+No code changes — documentation only.
+
+### Added
+- **[LANGUAGE.md](docs/LANGUAGE.md)**: Central mental model document
+  - 10 core rules of OwlLang
+  - Complete type system reference
+  - What the compiler guarantees (and what it doesn't)
+  - Definitive guide for users
+
+- **[examples/README.md](examples/README.md)**: Guide to example files
+
+### Changed
+- **README.md**: Updated to v0.2.4.4, added LANGUAGE.md link, fixed example list
+- **STABILITY.md**: Added v0.2.4.4 entry
+- **SYNTAX.md**: Completely rewritten (only implemented features)
+- **PHILOSOPHY.md**: Rewritten with correct examples (`let mut`, not `var`)
+- **CONTRIBUTING.md**: Rewritten with correct commands (Python/pip, not Rust/cargo)
+- **Examples reorganized**:
+  - Clean sequential numbering: 01–13
+  - Removed duplicates and redundant files
+  - Removed stale .py files
+
+### Archived
+Moved aspirational/fictional documentation to `docs/_archive/`:
+- ARCHITECTURE.md (described non-existent OwlVM, 3-phase compilation)
+- COMPARISON.md (showed features not implemented)
+- SYNTAX.md (old, 80% unimplemented features)
+- PHILOSOPHY.md (old, used wrong syntax)
+- TRANSPILATION.md (mostly aspirational)
+
+Moved future examples to `examples/_future/`:
+- 04_classes.ow (uses structs, not yet implemented)
+- 06_rest_api_client.ow (uses structs, not yet implemented)
+
+### Technical
+- 587 tests passing (added tests for new examples)
+- Documentation now accurately reflects v0.2.x reality
+- Clear separation: "what exists" vs "what's planned"
+
+### Design Notes
+- This release establishes trust: documentation says what the language *is*, not what it aspires to be
+- Prepares "human ground" for structs (v0.2.5) by making the current state crystal clear
+
+---
+
 ## [0.2.4.3-alpha] - 2026-01-31
 
 ### Internal Architecture Hardening & Compiler Refinement Pass

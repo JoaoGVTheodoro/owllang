@@ -1,12 +1,6 @@
-// ===========================================
-// OwlLang Example: Hello World
-// ===========================================
+// OwlLang: Hello World
+// Demonstrates the basic structure of an OwlLang program
 
-// Script mode - no main function required
-print("Hello, World! 🦉")
-
-// Or with main function
 fn main() {
-    print("Hello from OwlLang!")
-    print("The wise owl greets you.")
+    print("Hello, World! 🦉")
 }
