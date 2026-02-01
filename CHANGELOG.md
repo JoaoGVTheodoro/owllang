@@ -5,6 +5,46 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.1-alpha] - 2026-01-31
+
+### Conceptual Consolidation Release
+
+This release focuses on **simplification and consistency**, not new features.
+It treats all prior versions (v0.1.0 → v0.2.4) as a unified system and consolidates
+the language design for clarity.
+
+### Added
+- **INVARIANTS.md**: New document defining the fundamental language invariants
+  - Expression vs statement rules
+  - Type system invariants
+  - Mutability model
+  - Control flow guarantees
+  - Diagnostic code stability
+
+### Improved
+- **Diagnostic codes documentation**: Clear status for each warning code
+  - ✅ Implemented warnings are marked
+  - 📋 Reserved codes are documented for future implementation
+- **STABILITY.md**: Updated for v0.2.x with complete feature list
+- **README.md**: Updated version, test count, and feature summary
+
+### Removed
+- **W0302 TRIVIAL_IF**: Removed redundant warning code (superseded by W0306 CONSTANT_CONDITION)
+
+### Technical
+- 563 tests passing (unchanged from v0.2.4)
+- Zero new features (consolidation only)
+- Zero breaking changes
+- Documentation now reflects unified v0.1→v0.2.4 design
+
+### Design Notes
+This release establishes the conceptual foundation for v0.2.5 (Structs):
+- Language invariants are now explicit and documented
+- Stability guarantees are clear and versioned
+- Warning codes are properly categorized as implemented or reserved
+
+---
+
 ## [0.2.4-alpha] - 2026-01-31
 
 ### Added

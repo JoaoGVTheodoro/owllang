@@ -304,3 +304,36 @@ class TestCheckerStateInvariants:
         
         # Second run should not carry over warnings
         assert len(warnings2) == 0, "Warnings from previous run leaked"
+
+
+class TestConsolidationInvariants:
+    """Tests for v0.2.4.1 consolidation."""
+    
+    def test_w0302_trivial_if_removed(self) -> None:
+        """W0302 TRIVIAL_IF should not exist (superseded by W0306)."""
+        # Verify that TRIVIAL_IF is not in WarningCode
+        warning_names = [w.name for w in WarningCode]
+        assert "TRIVIAL_IF" not in warning_names, "TRIVIAL_IF should be removed"
+    
+    def test_constant_condition_still_exists(self) -> None:
+        """W0306 CONSTANT_CONDITION should still exist."""
+        assert hasattr(WarningCode, "CONSTANT_CONDITION")
+        assert WarningCode.CONSTANT_CONDITION.value == "W0306"
+    
+    def test_implemented_warnings_have_factory_functions(self) -> None:
+        """All implemented warnings should have factory functions in warning.py."""
+        from owllang.diagnostics import warning
+        
+        # These are documented as implemented in codes.py
+        implemented = [
+            "unused_variable_warning",
+            "unused_parameter_warning",
+            "unreachable_code_warning",
+            "result_ignored_warning",
+            "option_ignored_warning",
+            "constant_condition_warning",
+            "loop_without_exit_warning",
+        ]
+        
+        for fn_name in implemented:
+            assert hasattr(warning, fn_name), f"Missing factory: {fn_name}"

@@ -1,27 +1,33 @@
 # OwlLang Stability Contract
 
-This document defines the stability guarantees for OwlLang v0.1.x and outlines what will remain stable, what may change, and what is experimental.
+This document defines the stability guarantees for OwlLang and outlines what will remain stable, what may change, and what is experimental.
+
+> **For language invariants and core rules, see [INVARIANTS.md](INVARIANTS.md).**
 
 ## Purpose
 
-As OwlLang approaches the end of the 0.1.x series, this contract formalizes the boundaries of stability to help users and tool authors understand what they can depend on.
+As OwlLang evolves through the 0.2.x series, this contract formalizes the boundaries of stability to help users and tool authors understand what they can depend on.
 
 ---
 
 ## Stability Tiers
 
-### 🟢 Stable (Guaranteed until v0.2)
+### 🟢 Stable (Guaranteed until v0.3)
 
 These features are frozen and will not change without a major version bump:
 
 #### Language Semantics
 - **Core types**: `Int`, `Float`, `String`, `Bool`, `Void`, `Any`
-- **Algebraic types**: `Option[T]`, `Result[T, E]`
+- **Algebraic types**: `Option[T]`, `Result[T, E]`, `List[T]`
 - **Pattern matching**: `match` with `Some`, `None`, `Ok`, `Err` patterns
 - **Error propagation**: `?` operator for `Result` types
 - **Implicit returns**: Last expression is the return value
 - **If expressions**: `if/else` returns a value when used as expression
 - **Functions**: `fn name(params) -> Type { body }`
+- **Mutability**: `let` (immutable) and `let mut` (mutable)
+- **Loops**: `while`, `for-in`, `loop`
+- **Control flow**: `break`, `continue`, `return`
+- **Built-ins**: `print`, `len`, `get`, `push`, `is_empty`, `range`
 
 #### Python Interop
 - `from python import module`
@@ -176,13 +182,14 @@ If you believe a stability guarantee has been violated:
 
 ## Changelog
 
-| Version      | Stability Changes          |
-| ------------ | -------------------------- |
-| v0.1.6-alpha | Initial stability contract |
-| v0.1.5-alpha | CLI exit codes finalized   |
-| v0.1.4-alpha | Semantic consistency pass  |
-| v0.1.0-alpha | Initial language design    |
+| Version        | Stability Changes                   |
+| -------------- | ----------------------------------- |
+| v0.2.4.1-alpha | Added INVARIANTS.md, updated v0.2.x |
+| v0.1.6-alpha   | Initial stability contract          |
+| v0.1.5-alpha   | CLI exit codes finalized            |
+| v0.1.4-alpha   | Semantic consistency pass           |
+| v0.1.0-alpha   | Initial language design             |
 
 ---
 
-*This document is part of the OwlLang v0.1.6-alpha release.*
+*This document is part of the OwlLang v0.2.4.1-alpha release.*

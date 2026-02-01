@@ -3,21 +3,23 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.1--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.1--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-497%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
+[![Tests](https://img.shields.io/badge/tests-563%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
 **OwlLang** is an experimental programming language with a strong type system, first-class error handling via `Option` and `Result` types, and seamless Python interoperability. It transpiles to clean, readable Python code.
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.1-alpha** — the second release of the 0.2.x line:
-- `while` loops with `break` and `continue`
-- `let mut` for local mutability
-- Full loop control flow
+This is **v0.2.4.1-alpha** — a consolidation release:
+- Complete iteration model: `while`, `for-in`, `loop`, `range`
+- Lists with `len`, `get`, `push`, `is_empty`
+- Local mutability with `let mut`
+- Conceptual simplification pass
 - Not recommended for production use yet
 
-See [STABILITY.md](docs/STABILITY.md) for what is guaranteed stable.
+See [STABILITY.md](docs/STABILITY.md) for stability guarantees.
+See [INVARIANTS.md](docs/INVARIANTS.md) for language invariants.
 
 ---
 

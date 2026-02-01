@@ -75,29 +75,34 @@ class ErrorCode(Enum):
 
 
 class WarningCode(Enum):
-    """Warning codes that don't block compilation."""
+    """Warning codes that don't block compilation.
+    
+    Implementation Status:
+        ✅ Implemented - warning is actively checked
+        📋 Reserved - code reserved for future implementation
+    """
     
     # Variable warnings (W01xx)
-    UNUSED_VARIABLE = "W0101"
-    UNUSED_PARAMETER = "W0102"
-    VARIABLE_NEVER_MUTATED = "W0103"  # var declared but never mutated
+    UNUSED_VARIABLE = "W0101"           # ✅ Implemented
+    UNUSED_PARAMETER = "W0102"          # ✅ Implemented
+    VARIABLE_NEVER_MUTATED = "W0103"    # 📋 Reserved: let mut but never mutated
     
     # Dead code warnings (W02xx)
-    UNREACHABLE_CODE = "W0201"
-    UNUSED_FUNCTION = "W0202"
-    REDUNDANT_RETURN = "W0203"
-    LOOP_WITHOUT_EXIT = "W0204"
+    UNREACHABLE_CODE = "W0201"          # ✅ Implemented
+    UNUSED_FUNCTION = "W0202"           # 📋 Reserved: function never called
+    REDUNDANT_RETURN = "W0203"          # 📋 Reserved: return at end of Void fn
+    LOOP_WITHOUT_EXIT = "W0204"         # ✅ Implemented
     
     # Style warnings (W03xx)
-    REDUNDANT_MATCH = "W0301"  # match on single case
-    TRIVIAL_IF = "W0302"  # if true { x } else { y }
-    UNNECESSARY_ELSE = "W0303"  # else after return
-    RESULT_IGNORED = "W0304"  # Result value not used
-    OPTION_IGNORED = "W0305"  # Option value not unwrapped
-    CONSTANT_CONDITION = "W0306"  # if true or if false
+    REDUNDANT_MATCH = "W0301"           # 📋 Reserved: match with single case
+    # W0302 removed: was TRIVIAL_IF, superseded by CONSTANT_CONDITION (W0306)
+    UNNECESSARY_ELSE = "W0303"          # 📋 Reserved: else after return
+    RESULT_IGNORED = "W0304"            # ✅ Implemented
+    OPTION_IGNORED = "W0305"            # ✅ Implemented
+    CONSTANT_CONDITION = "W0306"        # ✅ Implemented: if true/false
     
     # Shadowing warnings (W04xx)
-    VARIABLE_SHADOWS = "W0401"  # legal but possibly confusing
+    VARIABLE_SHADOWS = "W0401"          # 📋 Reserved: shadows outer variable
 
 
 # Human-readable descriptions
@@ -120,6 +125,10 @@ WARNING_DESCRIPTIONS: dict[WarningCode, str] = {
     WarningCode.UNUSED_PARAMETER: "Parameter declared but never used",
     WarningCode.VARIABLE_NEVER_MUTATED: "Variable declared as mutable but never mutated",
     WarningCode.UNREACHABLE_CODE: "Code after this point will never execute",
+    WarningCode.LOOP_WITHOUT_EXIT: "Infinite loop without break or return",
     WarningCode.REDUNDANT_MATCH: "Match expression with single case is redundant",
+    WarningCode.RESULT_IGNORED: "Result value ignored; consider using match or ?",
+    WarningCode.OPTION_IGNORED: "Option value ignored; consider using match",
+    WarningCode.CONSTANT_CONDITION: "Condition is always true or always false",
     WarningCode.VARIABLE_SHADOWS: "Variable shadows a variable in outer scope",
 }
