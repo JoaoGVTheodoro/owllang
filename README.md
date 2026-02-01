@@ -3,7 +3,7 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.4.2--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.3--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-566%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
@@ -11,15 +11,17 @@
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.4.2-alpha** — a semantic tightening release:
+This is **v0.2.4.3-alpha** — an internal architecture hardening release:
 - Complete iteration model: `while`, `for-in`, `loop`, `range`
 - Lists with `len`, `get`, `push`, `is_empty`
 - Local mutability with `let mut`
-- Internal code audit and documentation fixes
+- Centralized type and built-in registries
+- Compiler ready for Structs
 - Not recommended for production use yet
 
 See [STABILITY.md](docs/STABILITY.md) for stability guarantees.
 See [INVARIANTS.md](docs/INVARIANTS.md) for language invariants.
+See [COMPILER.md](docs/COMPILER.md) for compiler architecture.
 
 ---
 

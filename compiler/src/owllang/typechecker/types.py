@@ -53,6 +53,48 @@ ANY = OwlType("Any")  # For Python interop
 
 
 # =============================================================================
+# Type Registry (Centralized type name mapping)
+# =============================================================================
+
+# Canonical mapping from type names to types.
+# Supports case-insensitive lookup via lookup_primitive_type().
+PRIMITIVE_TYPES: dict[str, OwlType] = {
+    "Int": INT,
+    "Float": FLOAT,
+    "String": STRING,
+    "Bool": BOOL,
+    "Void": VOID,
+    "Any": ANY,
+}
+
+# Alternative names for primitive types (for Python interop)
+_TYPE_ALIASES: dict[str, str] = {
+    "int": "Int",
+    "float": "Float",
+    "str": "String",
+    "bool": "Bool",
+    "void": "Void",
+}
+
+
+def lookup_primitive_type(name: str) -> OwlType | None:
+    """
+    Look up a primitive type by name.
+    
+    Supports canonical names (Int, Float, etc.) and aliases (int, str, etc.).
+    Returns None if the type is not a known primitive.
+    """
+    # Try canonical name first
+    if name in PRIMITIVE_TYPES:
+        return PRIMITIVE_TYPES[name]
+    # Try alias
+    canonical = _TYPE_ALIASES.get(name)
+    if canonical:
+        return PRIMITIVE_TYPES[canonical]
+    return None
+
+
+# =============================================================================
 # Generic Types: Option[T] and Result[T, E]
 # =============================================================================
 
@@ -255,3 +297,30 @@ def types_compatible(expected: OwlType, actual: OwlType) -> bool:
     
     # Same type class
     return expected == actual
+
+
+# =============================================================================
+# Parameterized Type Registry
+# =============================================================================
+
+# Registry of parameterized types.
+# Maps type name -> (arity, constructor function)
+# This makes adding new parameterized types (e.g., StructType) easy.
+from typing import Callable
+
+ParameterizedTypeConstructor = Callable[[list[OwlType]], OwlType]
+
+PARAMETERIZED_TYPES: dict[str, tuple[int, ParameterizedTypeConstructor]] = {
+    "Option": (1, lambda params: OptionType(params[0])),
+    "Result": (2, lambda params: ResultType(params[0], params[1])),
+    "List": (1, lambda params: ListType(params[0])),
+}
+
+
+def lookup_parameterized_type(name: str) -> tuple[int, ParameterizedTypeConstructor] | None:
+    """
+    Look up a parameterized type by name.
+    
+    Returns (arity, constructor) or None if not found.
+    """
+    return PARAMETERIZED_TYPES.get(name)

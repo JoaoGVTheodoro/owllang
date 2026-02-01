@@ -5,6 +5,48 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.3-alpha] - 2026-01-31
+
+### Internal Architecture Hardening & Compiler Refinement Pass
+
+This release focuses on **internal architecture improvements** to prepare for Structs.
+No changes to language semantics, syntax, or observable behavior.
+
+### Added
+- **COMPILER.md**: New document describing compiler internal architecture
+- **`typechecker/builtins.py`**: Centralized built-in function registry
+  - All built-ins define type signature and transpilation template in one place
+  - Type constructors (`Some`, `Ok`, `Err`) now use registry
+
+### Changed
+- **Type system architecture**:
+  - `PRIMITIVE_TYPES` registry for primitive type lookup
+  - `PARAMETERIZED_TYPES` registry for Option, Result, List
+  - `lookup_primitive_type()` and `lookup_parameterized_type()` functions
+  - Adding new types (e.g., StructType) is now straightforward
+
+- **TypeChecker refactoring**:
+  - `_parse_type()` now uses centralized registries
+  - `_register_builtins()` uses `BUILTIN_FUNCTIONS` registry
+  - `_check_call()` uses `is_type_constructor()` for dispatch
+
+- **Transpiler simplification**:
+  - Uses `transpile_template` from `BUILTIN_FUNCTIONS`
+  - Added design principle docstring: "dumb backend"
+  - Removed hardcoded special cases for `get`, `push`, `is_empty`
+
+### Technical
+- 566 tests passing
+- No behavioral changes
+- Compiler ready for StructType addition
+
+### Design Notes
+- Single source of truth: type registries in `types.py`
+- Single source of truth: built-in definitions in `builtins.py`
+- Transpiler trusts type checker (no re-validation)
+
+---
+
 ## [0.2.4.2-alpha] - 2026-01-31
 
 ### Semantic Tightening & Transpiler Simplification

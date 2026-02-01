@@ -32,6 +32,7 @@ from .types import (
     OwlType, INT, FLOAT, STRING, BOOL, VOID, UNKNOWN, ANY,
     OptionType, ResultType, ListType,
     parse_type, types_compatible,
+    lookup_primitive_type, lookup_parameterized_type,
 )
 
 from ..diagnostics import (
@@ -201,18 +202,13 @@ class TypeChecker:
         self._register_builtins()
     
     def _register_builtins(self) -> None:
-        """Register built-in functions."""
-        # print accepts any type
-        self.env.define_fn("print", [ANY], VOID)
+        """Register built-in functions from centralized registry."""
+        from .builtins import BUILTIN_FUNCTIONS
         
-        # List built-in functions (handled specially in _check_call)
-        # len(list) -> Int
-        self.env.define_fn("len", [ListType(ANY)], INT)
-        # is_empty(list) -> Bool
-        self.env.define_fn("is_empty", [ListType(ANY)], BOOL)
-        # range(start, end) -> List[Int]
-        self.env.define_fn("range", [INT, INT], ListType(INT))
-        # get and push are handled specially because of generic return types
+        for name, builtin in BUILTIN_FUNCTIONS.items():
+            # Convert tuple to list for define_fn
+            param_types = list(builtin.param_types)
+            self.env.define_fn(name, param_types, builtin.return_type)
     
     def _add_warning(self, warning: Warning) -> None:
         """Add a warning to the warning list, avoiding duplicates."""
@@ -289,63 +285,39 @@ class TypeChecker:
         """
         Convert a TypeAnnotation AST node into an OwlType.
         
-        Validates arity for parameterized types:
-        - Option requires exactly 1 type parameter
-        - Result requires exactly 2 type parameters
+        Uses centralized type registries from types.py:
+        - lookup_primitive_type() for Int, Float, String, etc.
+        - lookup_parameterized_type() for Option[T], Result[T,E], List[T]
+        
+        Validates arity for parameterized types.
         """
         name = type_ann.name
         params = type_ann.params
+        span = type_ann.span if type_ann.span else DUMMY_SPAN
         
-        # Primitive types (no parameters allowed)
-        primitives = {
-            "Int": INT, "int": INT,
-            "Float": FLOAT, "float": FLOAT,
-            "String": STRING, "str": STRING,
-            "Bool": BOOL, "bool": BOOL,
-            "Void": VOID, "void": VOID,
-            "Any": ANY,
-        }
-        
-        if name in primitives:
+        # Try primitive type first (no parameters allowed)
+        primitive = lookup_primitive_type(name)
+        if primitive is not None:
             if params:
-                span = type_ann.span if type_ann.span else DUMMY_SPAN
                 self._add_diagnostic(wrong_type_arity_error(name, 0, len(params), span))
                 return UNKNOWN
-            return primitives[name]
+            return primitive
         
-        # Option[T] - requires exactly 1 parameter
-        if name == "Option":
-            if len(params) != 1:
-                span = type_ann.span if type_ann.span else DUMMY_SPAN
-                self._add_diagnostic(wrong_type_arity_error("Option", 1, len(params), span))
+        # Try parameterized type
+        param_info = lookup_parameterized_type(name)
+        if param_info is not None:
+            expected_arity, constructor = param_info
+            if len(params) != expected_arity:
+                self._add_diagnostic(wrong_type_arity_error(name, expected_arity, len(params), span))
                 return UNKNOWN
-            inner_type = self._parse_type(params[0])
-            return OptionType(inner_type)
-        
-        # Result[T, E] - requires exactly 2 parameters
-        if name == "Result":
-            if len(params) != 2:
-                span = type_ann.span if type_ann.span else DUMMY_SPAN
-                self._add_diagnostic(wrong_type_arity_error("Result", 2, len(params), span))
-                return UNKNOWN
-            ok_type = self._parse_type(params[0])
-            err_type = self._parse_type(params[1])
-            return ResultType(ok_type, err_type)
-        
-        # List[T] - requires exactly 1 parameter
-        if name == "List":
-            if len(params) != 1:
-                span = type_ann.span if type_ann.span else DUMMY_SPAN
-                self._add_diagnostic(wrong_type_arity_error("List", 1, len(params), span))
-                return UNKNOWN
-            element_type = self._parse_type(params[0])
-            return ListType(element_type)
+            # Parse inner types recursively
+            parsed_params = [self._parse_type(p) for p in params]
+            return constructor(parsed_params)
         
         # Unknown type
-        span = type_ann.span if type_ann.span else DUMMY_SPAN
         self._add_diagnostic(unknown_type_error(name, span))
         return UNKNOWN
-    
+
     def _stmt_has_return(self, stmt: Stmt) -> bool:
         """Check if a statement contains a return statement."""
         if isinstance(stmt, ReturnStmt):
@@ -946,23 +918,23 @@ class TypeChecker:
     
     def _check_call(self, expr: Call) -> OwlType:
         """Check function call."""
+        from .builtins import is_type_constructor, get_builtin
+        
         # Get callee type
         if isinstance(expr.callee, Identifier):
             callee_name = expr.callee.name
             
-            # Special constructors: Some, Ok, Err
-            if callee_name == "Some":
-                return self._check_some_call(expr)
-            elif callee_name == "Ok":
-                return self._check_ok_call(expr)
-            elif callee_name == "Err":
-                return self._check_err_call(expr)
+            # Check for type constructors: Some, Ok, Err
+            if is_type_constructor(callee_name):
+                return self._check_type_constructor_call(callee_name, expr)
             
-            # Special list functions with generic return types
-            elif callee_name == "get":
-                return self._check_get_call(expr)
-            elif callee_name == "push":
-                return self._check_push_call(expr)
+            # Check for built-ins with generic return types (special handling)
+            builtin = get_builtin(callee_name)
+            if builtin and builtin.generic_return:
+                if callee_name == "get":
+                    return self._check_get_call(expr)
+                elif callee_name == "push":
+                    return self._check_push_call(expr)
             
             fn_info = self.env.lookup_fn(callee_name)
             if fn_info:
@@ -1004,6 +976,23 @@ class TypeChecker:
             self._check_expr(arg)
         
         return UNKNOWN
+    
+    def _check_type_constructor_call(self, name: str, expr: Call) -> OwlType:
+        """
+        Check a type constructor call (Some, Ok, Err).
+        
+        Uses the TYPE_CONSTRUCTORS registry to dispatch to appropriate handler.
+        """
+        if name == "Some":
+            return self._check_some_call(expr)
+        elif name == "Ok":
+            return self._check_ok_call(expr)
+        elif name == "Err":
+            return self._check_err_call(expr)
+        else:
+            # This shouldn't happen if is_type_constructor works correctly
+            self._error(f"Unknown type constructor: {name}", 1, 1)
+            return UNKNOWN
     
     def _check_some_call(self, expr: Call) -> OwlType:
         """Check Some(x) constructor - returns Option[type(x)]."""

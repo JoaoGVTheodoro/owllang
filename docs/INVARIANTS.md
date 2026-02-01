@@ -255,5 +255,6 @@ OwlLang transpiles to Python. The generated code is not part of the API.
 
 | Version        | Changes                     |
 | -------------- | --------------------------- |
+| v0.2.4.3-alpha | Validated, no changes       |
 | v0.2.4.2-alpha | Validated, no changes       |
 | v0.2.4.1-alpha | Initial invariants document |

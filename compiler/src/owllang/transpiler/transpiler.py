@@ -2,6 +2,9 @@
 OwlLang Transpiler
 
 Converts OwlLang AST to Python source code.
+
+Design principle: The transpiler is a "dumb backend" that assumes the AST
+has passed type checking. It does not re-validate semantic rules.
 """
 
 from __future__ import annotations
@@ -18,6 +21,8 @@ from ..ast import (
     # Declarations
     FnDecl, PythonImport, PythonFromImport, Program
 )
+
+from ..typechecker.builtins import get_builtin, is_type_constructor
 
 
 class Transpiler:
@@ -515,28 +520,21 @@ class Transpiler:
             return f"({expr.operator}{operand})"
         
         elif isinstance(expr, Call):
-            # Handle special built-in functions for List[T]
+            # Handle built-in functions using registry
             if isinstance(expr.callee, Identifier):
                 callee_name = expr.callee.name
+                builtin = get_builtin(callee_name)
                 
-                if callee_name == "get":
-                    # get(list, index) -> list[index]
-                    list_arg = self._transpile_expr(expr.arguments[0])
-                    index_arg = self._transpile_expr(expr.arguments[1])
-                    return f"{list_arg}[{index_arg}]"
+                if builtin and builtin.transpile_template:
+                    # Use template from builtins registry
+                    args = [self._transpile_expr(arg) for arg in expr.arguments]
+                    return builtin.transpile_template.format(*args)
                 
-                elif callee_name == "push":
-                    # push(list, value) -> list + [value] (immutable, returns new list)
-                    list_arg = self._transpile_expr(expr.arguments[0])
-                    value_arg = self._transpile_expr(expr.arguments[1])
-                    return f"({list_arg} + [{value_arg}])"
-                
-                elif callee_name == "is_empty":
-                    # is_empty(list) -> len(list) == 0
-                    list_arg = self._transpile_expr(expr.arguments[0])
-                    return f"(len({list_arg}) == 0)"
-                
-                # len maps directly to Python's len
+                # Special case: print can have any number of args
+                # (template only handles single arg)
+                if callee_name == "print":
+                    args = ", ".join(self._transpile_expr(arg) for arg in expr.arguments)
+                    return f"print({args})"
             
             callee = self._transpile_expr(expr.callee)
             args = ", ".join(self._transpile_expr(arg) for arg in expr.arguments)
