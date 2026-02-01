@@ -5,6 +5,59 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.5-alpha] - 2026-02-01
+
+### Stabilization Before Structs
+
+This release locks semantic ground, invariants, and mental models before introducing Structs.
+No new language features — **semantic anchor only**.
+
+### Added
+- **[NOT_IMPLEMENTED.md](docs/NOT_IMPLEMENTED.md)**: Explicit list of what OwlLang does NOT have
+  - Features excluded by design (null, exceptions, inheritance)
+  - Planned features (structs, enums, closures, generics, traits)
+  - Behavioral boundaries (undefined behavior documented)
+
+- **Semantic Lock Tests** (`test_semantic_lock.py`): 40 regression tests
+  - Immutability semantics (E0323)
+  - Type system behavior (type mismatches, return types)
+  - Option/Result exhaustive matching (E0503)
+  - Control flow (break/continue outside loop)
+  - Scope semantics (undefined variables, shadowing)
+  - Warning behavior (W0101, W0201, W0304)
+  - Built-in function availability
+  - Diagnostic code stability
+
+### Changed
+- **INVARIANTS.md**: Enhanced with new sections
+  - Section 0: Semantic Guarantees (guaranteed vs undefined behavior)
+  - Section 10: Evaluation Order (statement order, short-circuit, arguments)
+  - Section 11: Memory and Lifetime (value vs reference semantics)
+
+- **SYNTAX.md**: Fixed from-import syntax documentation
+  - Was: `from python import { name } from module`
+  - Now: `from python.module import name`
+
+- **STABILITY.md**: 
+  - Fixed List[T] classification (collection, not algebraic type)
+  - Added v0.2.4.5-alpha entry
+
+- **README.md**:
+  - Updated to v0.2.4.5-alpha
+  - Fixed version output in installation section
+
+### Technical
+- 627 tests passing (40 new semantic lock tests)
+- Codebase audited for TODOs/FIXMEs (1 CRITICAL, 6 HIGH, 8 LOW identified)
+- All documentation uses consistent terminology
+
+### Design Notes
+- This release is a **semantic anchor**, not a stepping stone
+- If Structs were never implemented, v0.2.4.5-alpha would be complete and coherent
+- Success criterion: the language is defensible as-is
+
+---
+
 ## [0.2.4.4-alpha] - 2026-01-31
 
 ### Language Contract, Mental Model & Documentation Reset

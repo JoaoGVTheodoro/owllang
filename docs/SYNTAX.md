@@ -335,8 +335,8 @@ let x = math.sqrt(16)
 ### From Import
 
 ```owl
-from python import { loads, dumps } from json
-from python import { get } from requests
+from python.json import loads, dumps
+from python.requests import get
 
 let data = loads('{"key": "value"}')
 ```

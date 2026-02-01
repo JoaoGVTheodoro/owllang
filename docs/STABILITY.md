@@ -18,7 +18,8 @@ These features are frozen and will not change without a major version bump:
 
 #### Language Semantics
 - **Core types**: `Int`, `Float`, `String`, `Bool`, `Void`, `Any`
-- **Algebraic types**: `Option[T]`, `Result[T, E]`, `List[T]`
+- **Algebraic types**: `Option[T]`, `Result[T, E]`
+- **Collection types**: `List[T]`
 - **Pattern matching**: `match` with `Some`, `None`, `Ok`, `Err` patterns
 - **Error propagation**: `?` operator for `Result` types
 - **Implicit returns**: Last expression is the return value
@@ -182,17 +183,18 @@ If you believe a stability guarantee has been violated:
 
 ## Changelog
 
-| Version        | Stability Changes                      |
-| -------------- | -------------------------------------- |
-| v0.2.4.4-alpha | Documentation reset, LANGUAGE.md       |
-| v0.2.4.3-alpha | Internal architecture, type registries |
-| v0.2.4.2-alpha | Documentation fixes, code audit        |
-| v0.2.4.1-alpha | Added INVARIANTS.md, updated v0.2.x    |
-| v0.1.6-alpha   | Initial stability contract             |
-| v0.1.5-alpha   | CLI exit codes finalized               |
-| v0.1.4-alpha   | Semantic consistency pass              |
-| v0.1.0-alpha   | Initial language design                |
+| Version        | Stability Changes                                |
+| -------------- | ------------------------------------------------ |
+| v0.2.4.5-alpha | Semantic lock tests, invariants, NOT_IMPLEMENTED |
+| v0.2.4.4-alpha | Documentation reset, LANGUAGE.md                 |
+| v0.2.4.3-alpha | Internal architecture, type registries           |
+| v0.2.4.2-alpha | Documentation fixes, code audit                  |
+| v0.2.4.1-alpha | Added INVARIANTS.md, updated v0.2.x              |
+| v0.1.6-alpha   | Initial stability contract                       |
+| v0.1.5-alpha   | CLI exit codes finalized                         |
+| v0.1.4-alpha   | Semantic consistency pass                        |
+| v0.1.0-alpha   | Initial language design                          |
 
 ---
 
-*This document is part of the OwlLang v0.2.4.4-alpha release.*
+*This document is part of the OwlLang v0.2.4.5-alpha release.*

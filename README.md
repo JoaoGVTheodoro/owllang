@@ -3,19 +3,19 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.4.4--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.5--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-587%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
+[![Tests](https://img.shields.io/badge/tests-627%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
 **OwlLang** is an experimental programming language with a strong type system, first-class error handling via `Option` and `Result` types, and seamless Python interoperability. It transpiles to clean, readable Python code.
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.4.4-alpha** — a documentation and mental model release:
-- Clear language contract in [LANGUAGE.md](docs/LANGUAGE.md)
-- Accurate, minimal documentation
-- Cleaned examples with logical progression
-- Compiler ready for Structs (coming in v0.2.5)
+This is **v0.2.4.5-alpha** — a stabilization release before Structs:
+- Semantic lock tests to prevent regressions
+- Language invariants documented (evaluation order, scoping, error boundaries)
+- NOT_IMPLEMENTED.md clearly lists excluded features
+- Compiler and documentation ready for Structs (coming in v0.2.5)
 - Not recommended for production use yet
 
 See [LANGUAGE.md](docs/LANGUAGE.md) for the definitive language guide.
@@ -52,7 +52,7 @@ pip install -e ".[dev]"
 
 # Verify installation
 owl --version
-# OwlLang 0.1.0-alpha
+# OwlLang 0.2.4-alpha
 ```
 
 ---
@@ -248,7 +248,7 @@ To set expectations clearly:
 cd compiler
 pip install -e ".[dev]"
 pytest -v
-# 587 tests passing
+# 627 tests passing
 ```
 
 ---
@@ -276,6 +276,6 @@ MIT License — see [LICENSE](LICENSE).
 ---
 
 <p align="center">
-  <b>🦉 OwlLang v0.2.4.4-alpha</b><br>
+  <b>🦉 OwlLang v0.2.4.5-alpha</b><br>
   <i>"Wisdom comes from seeing clearly in the dark"</i>
 </p>

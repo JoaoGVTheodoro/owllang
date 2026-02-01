@@ -3,6 +3,53 @@
 This document defines the **fundamental invariants** of OwlLang — the core rules that must never be violated. These invariants form the conceptual foundation of the language.
 
 > **For stability guarantees and versioning policy, see [STABILITY.md](STABILITY.md).**
+>
+> **For features NOT in OwlLang, see [NOT_IMPLEMENTED.md](NOT_IMPLEMENTED.md).**
+
+---
+
+## 0. Semantic Guarantees
+
+This section defines what OwlLang **guarantees** and what is **undefined**.
+
+### Guaranteed Behavior
+
+These behaviors are locked and will not change:
+
+| Guarantee               | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| **Type safety**         | If code compiles, no type errors at runtime                  |
+| **Immutability**        | `let` bindings never change; `let mut` required for mutation |
+| **Exhaustive matching** | `match` must cover all cases                                 |
+| **Error propagation**   | `?` operator on `Err` returns immediately                    |
+| **Lexical scoping**     | Variables are visible from declaration to end of block       |
+| **Value semantics**     | Primitives are copied; no hidden aliasing                    |
+
+### Undefined Behavior
+
+These behaviors are explicitly **not guaranteed**:
+
+| Not Guaranteed            | Reason                                 |
+| ------------------------- | -------------------------------------- |
+| Argument evaluation order | Currently left-to-right but may change |
+| Integer overflow          | Follows Python (arbitrary precision)   |
+| Index bounds checking     | Runtime error, not compile-time        |
+| Division by zero          | Runtime error, not compile-time        |
+| Generated Python style    | May change between versions            |
+| Error message wording     | May improve without version bump       |
+
+### Error Boundaries
+
+OwlLang catches errors at **compile time** vs **runtime**:
+
+| Compile-Time (Blocked)      | Runtime (May Crash)        |
+| --------------------------- | -------------------------- |
+| Type mismatches             | Index out of bounds        |
+| Undefined variables         | Division by zero           |
+| Assignment to immutable     | Python import failures     |
+| Non-exhaustive match        | Python interop type errors |
+| `?` outside Result function | Infinite loops             |
+| Break/continue outside loop | Stack overflow             |
 
 ---
 
@@ -251,10 +298,76 @@ OwlLang transpiles to Python. The generated code is not part of the API.
 
 ---
 
+## 10. Evaluation Order
+
+### Invariant 10.1: Statement Order
+
+Statements execute top-to-bottom:
+
+```owl
+let a = 1    // First
+let b = 2    // Second
+print(a + b) // Third
+```
+
+### Invariant 10.2: Short-Circuit Evaluation
+
+OwlLang does not have `&&` or `||` operators. Compound conditions require nested `if`:
+
+```owl
+// To achieve "a && b":
+if a {
+    if b {
+        // both true
+    }
+}
+```
+
+This is deliberate: no hidden short-circuit semantics.
+
+### Invariant 10.3: Function Argument Evaluation
+
+Arguments are currently evaluated left-to-right, but this is **not guaranteed**:
+
+```owl
+f(a(), b(), c())  // a() first, then b(), then c() — but may change
+```
+
+Do not rely on side-effect ordering in arguments.
+
+---
+
+## 11. Memory and Lifetime
+
+### Invariant 11.1: No Ownership System
+
+OwlLang does not track ownership or lifetimes. Memory is managed by Python.
+
+### Invariant 11.2: Value Semantics for Primitives
+
+Primitives (`Int`, `Float`, `String`, `Bool`) have value semantics:
+
+```owl
+let a = 10
+let b = a    // b is a copy, not a reference
+```
+
+### Invariant 11.3: Reference Semantics for Collections
+
+`List[T]` has reference semantics in the generated Python, but OwlLang's immutable-by-default model discourages mutation:
+
+```owl
+let xs = [1, 2, 3]
+let ys = push(xs, 4)  // ys is a NEW list; xs unchanged
+```
+
+---
+
 ## Version History
 
-| Version        | Changes                     |
-| -------------- | --------------------------- |
-| v0.2.4.3-alpha | Validated, no changes       |
-| v0.2.4.2-alpha | Validated, no changes       |
-| v0.2.4.1-alpha | Initial invariants document |
+| Version        | Changes                                                    |
+| -------------- | ---------------------------------------------------------- |
+| v0.2.4.5-alpha | Added Section 0 (guarantees), 10 (eval order), 11 (memory) |
+| v0.2.4.3-alpha | Validated, no changes                                      |
+| v0.2.4.2-alpha | Validated, no changes                                      |
+| v0.2.4.1-alpha | Initial invariants document                                |
