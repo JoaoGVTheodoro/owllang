@@ -279,3 +279,12 @@ def unknown_type_error(type_name: str, span: Span) -> DiagnosticError:
         message=f"unknown type `{type_name}`",
         span=span,
     ).with_hint("valid types are: Int, Float, String, Bool, Void, Option[T], Result[T, E]")
+
+
+def assignment_to_immutable_error(name: str, span: Span) -> DiagnosticError:
+    """Create an error for assigning to an immutable variable."""
+    return DiagnosticError(
+        code=ErrorCode.ASSIGNMENT_TO_IMMUTABLE.value,
+        message=f"cannot assign to immutable variable `{name}`",
+        span=span,
+    ).with_hint(f"consider declaring with `let mut {name}` to make it mutable")

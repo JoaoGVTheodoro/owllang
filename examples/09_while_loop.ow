@@ -1,0 +1,27 @@
+// Example: while loop and mutable variables
+// Tests v0.2.0 features
+
+fn countdown(n: Int) -> Void {
+    let mut i = n
+    while i > 0 {
+        print(i)
+        i = i - 1
+    }
+    print("Liftoff!")
+}
+
+fn sum_to_n(n: Int) -> Int {
+    let mut sum = 0
+    let mut i = 1
+    while i <= n {
+        sum = sum + i
+        i = i + 1
+    }
+    sum
+}
+
+fn main() {
+    countdown(5)
+    let result = sum_to_n(10)
+    print(result)
+}

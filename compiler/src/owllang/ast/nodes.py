@@ -42,6 +42,8 @@ class TokenType(Enum):
     IDENT = auto()
     FN = auto()
     LET = auto()
+    MUT = auto()  # mut (mutable)
+    WHILE = auto()  # while
     FROM = auto()
     PYTHON = auto()
     IMPORT = auto()
@@ -308,11 +310,21 @@ class Stmt:
 
 @dataclass
 class LetStmt(Stmt):
-    """Variable declaration: let x = 10"""
+    """Variable declaration: let x = 10 or let mut x = 10"""
 
     name: str
     value: Expr
     type_annotation: Optional[TypeAnnotation] = None
+    mutable: bool = False  # True for 'let mut'
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class AssignStmt(Stmt):
+    """Assignment to mutable variable: x = 20"""
+
+    name: str
+    value: Expr
     span: Optional[Span] = field(default=None, compare=False)
 
 
@@ -329,6 +341,15 @@ class ReturnStmt(Stmt):
     """Return statement: return x + y"""
 
     value: Optional[Expr] = None
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class WhileStmt(Stmt):
+    """While loop: while condition { body }"""
+
+    condition: Expr
+    body: list[Stmt]
     span: Optional[Span] = field(default=None, compare=False)
 
 

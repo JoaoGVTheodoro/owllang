@@ -18,7 +18,7 @@ from ..ast import (
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, ExprStmt, ReturnStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -39,6 +39,7 @@ SYNC_TOKENS = frozenset({
     TokenType.LET,
     TokenType.RETURN,
     TokenType.IF,
+    TokenType.WHILE,
     TokenType.FROM,
     TokenType.RBRACE,
 })
@@ -154,6 +155,12 @@ class Parser:
     def _check(self, token_type: TokenType) -> bool:
         """Check if current token is of given type."""
         return self._peek().type == token_type
+    
+    def _peek_next_is(self, token_type: TokenType) -> bool:
+        """Check if the next token (after current) is of given type."""
+        if self.pos + 1 >= len(self.tokens):
+            return False
+        return self.tokens[self.pos + 1].type == token_type
     
     def _match(self, *token_types: TokenType) -> Token | None:
         """If current token matches any type, consume and return it."""
@@ -306,12 +313,20 @@ class Parser:
             return self._parse_return_stmt()
         elif self._check(TokenType.IF):
             return self._parse_if_stmt()
+        elif self._check(TokenType.WHILE):
+            return self._parse_while_stmt()
+        elif self._check(TokenType.IDENT) and self._peek_next_is(TokenType.ASSIGN):
+            return self._parse_assign_stmt()
         else:
             return self._parse_expr_stmt()
     
     def _parse_let_stmt(self) -> LetStmt:
-        """Parse: let x = value"""
+        """Parse: let x = value or let mut x = value"""
         self._expect(TokenType.LET, "Expected 'let'")
+        
+        # Check for 'mut' keyword
+        mutable = self._match(TokenType.MUT) is not None
+        
         name_token = self._expect(TokenType.IDENT, "Expected variable name")
         
         # Optional type annotation
@@ -322,7 +337,21 @@ class Parser:
         self._expect(TokenType.ASSIGN, "Expected '=' after variable name")
         value = self._parse_expr()
         
-        return LetStmt(name_token.value, value, type_annotation)
+        return LetStmt(name_token.value, value, type_annotation, mutable)
+    
+    def _parse_assign_stmt(self) -> AssignStmt:
+        """Parse: x = value (assignment to mutable variable)"""
+        name_token = self._expect(TokenType.IDENT, "Expected variable name")
+        self._expect(TokenType.ASSIGN, "Expected '='")
+        value = self._parse_expr()
+        return AssignStmt(name_token.value, value)
+    
+    def _parse_while_stmt(self) -> WhileStmt:
+        """Parse: while condition { body }"""
+        self._expect(TokenType.WHILE, "Expected 'while'")
+        condition = self._parse_expr()
+        body = self._parse_block()
+        return WhileStmt(condition, body)
     
     def _parse_return_stmt(self) -> ReturnStmt:
         """Parse: return [expr]"""

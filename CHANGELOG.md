@@ -5,6 +5,44 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-alpha] - 2026-01-31
+
+### Added
+- **`while` loops**: Iterative control flow for real algorithms
+  ```owl
+  let mut i = 10
+  while i > 0 {
+      print(i)
+      i = i - 1
+  }
+  ```
+- **`let mut` for mutable variables**: Local mutability with explicit opt-in
+  ```owl
+  let mut count = 0
+  count = count + 1  // OK: count is mutable
+  ```
+- **Assignment statements**: `x = value` for mutable variables
+- **Error E0323**: "cannot assign to immutable variable" with helpful hint
+  ```
+  error[E0323]: cannot assign to immutable variable `x`
+    hint: consider declaring with `let mut x` to make it mutable
+  ```
+
+### Improved
+- **Diagnostic codes in errors**: All type errors now show proper error codes (E0xxx)
+- **Hints in error messages**: Error messages now display hints to help fix issues
+- **New example**: `examples/09_while_loop.ow` demonstrating countdown and sum algorithms
+
+### Technical
+- 482 tests passing (added 17 v0.2.0 feature tests)
+- **First release of 0.2.x line**: Focus on practical programming capabilities
+- Design principle: "Capacidade vem antes de abstração" (capability before abstraction)
+
+### Design Notes
+- `while` is a **statement**, not an expression (cannot be used as value)
+- Mutability does NOT propagate implicitly - each variable must be explicitly `let mut`
+- Immutable by default preserves safety guarantees
+
 ## [0.1.6-alpha] - 2026-01-31
 
 ### Added

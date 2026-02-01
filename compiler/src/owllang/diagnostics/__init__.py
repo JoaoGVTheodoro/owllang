@@ -31,6 +31,7 @@ from .error import (
     unknown_type_error,
     match_not_exhaustive_error,
     match_invalid_pattern_error,
+    assignment_to_immutable_error,
 )
 from .warning import (
     Warning,
@@ -72,6 +73,7 @@ __all__ = [
     "unknown_type_error",
     "match_not_exhaustive_error",
     "match_invalid_pattern_error",
+    "assignment_to_immutable_error",
     # Warning
     "Warning",
     # Warning factory functions

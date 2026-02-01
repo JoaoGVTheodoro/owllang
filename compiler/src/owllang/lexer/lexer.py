@@ -33,6 +33,8 @@ class Lexer:
     KEYWORDS: dict[str, TokenType] = {
         'fn': TokenType.FN,
         'let': TokenType.LET,
+        'mut': TokenType.MUT,
+        'while': TokenType.WHILE,
         'from': TokenType.FROM,
         'python': TokenType.PYTHON,
         'import': TokenType.IMPORT,

@@ -414,12 +414,12 @@ def check_single_file(file_path: Path, no_warnings: bool = False) -> CheckResult
         for err in type_errors:
             errors.append(DiagnosticOutput(
                 severity="error",
-                code="E0000",  # Generic type error
-                message=str(err),
+                code=getattr(err, 'code', "E0000"),  # Use error code if available
+                message=err.message,
                 file=str(file_path),
                 line=getattr(err, 'line', 1),
                 column=getattr(err, 'column', 1),
-                hints=[],
+                hints=getattr(err, 'hints', None) or [],
                 notes=[],
             ))
         
@@ -504,6 +504,8 @@ def output_human(
             print_error_stderr(f"Errors in {result.file}:")
             for err in result.errors:
                 print(f"  error[{err.code}]: {err.message}", file=sys.stderr)
+                for hint in err.hints:
+                    print(f"    hint: {hint}", file=sys.stderr)
         
         if result.warnings and not no_warnings:
             color_code = "\033[91m" if deny_warnings else "\033[93m"

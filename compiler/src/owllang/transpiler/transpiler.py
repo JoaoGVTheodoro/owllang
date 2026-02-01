@@ -13,7 +13,7 @@ from ..ast import (
     # Pattern Matching
     MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Statements
-    Stmt, LetStmt, ExprStmt, ReturnStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, IfStmt,
     # Declarations
     FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -83,10 +83,18 @@ class Transpiler:
         """Check if a statement contains Result usage."""
         if isinstance(stmt, LetStmt):
             return self._expr_has_result(stmt.value)
+        elif isinstance(stmt, AssignStmt):
+            return self._expr_has_result(stmt.value)
         elif isinstance(stmt, ExprStmt):
             return self._expr_has_result(stmt.expr)
         elif isinstance(stmt, ReturnStmt):
             return stmt.value is not None and self._expr_has_result(stmt.value)
+        elif isinstance(stmt, WhileStmt):
+            if self._expr_has_result(stmt.condition):
+                return True
+            for s in stmt.body:
+                if self._stmt_has_result(s):
+                    return True
         elif isinstance(stmt, IfStmt):
             if self._expr_has_result(stmt.condition):
                 return True
@@ -265,10 +273,14 @@ class Transpiler:
         """Transpile a statement."""
         if isinstance(stmt, LetStmt):
             return self._transpile_let(stmt)
+        elif isinstance(stmt, AssignStmt):
+            return self._transpile_assign(stmt)
         elif isinstance(stmt, ExprStmt):
             return self._transpile_expr_stmt(stmt)
         elif isinstance(stmt, ReturnStmt):
             return self._transpile_return(stmt)
+        elif isinstance(stmt, WhileStmt):
+            return self._transpile_while(stmt)
         elif isinstance(stmt, IfStmt):
             return self._transpile_if(stmt)
         else:
@@ -278,6 +290,7 @@ class Transpiler:
         """Transpile: let x = value → x = value
         
         Special handling for try expressions (?) to enable early return.
+        Note: 'mut' doesn't affect Python output - mutability is enforced at compile time.
         """
         # Check if value contains TryExpr and handle specially
         if isinstance(stmt.value, TryExpr):
@@ -285,6 +298,27 @@ class Transpiler:
         
         value = self._transpile_expr(stmt.value)
         return self._indent(f"{stmt.name} = {value}")
+    
+    def _transpile_assign(self, stmt: AssignStmt) -> str:
+        """Transpile: x = value → x = value (assignment to mutable variable)."""
+        value = self._transpile_expr(stmt.value)
+        return self._indent(f"{stmt.name} = {value}")
+    
+    def _transpile_while(self, stmt: WhileStmt) -> str:
+        """Transpile: while condition { body } → while condition: body"""
+        lines: list[str] = []
+        condition = self._transpile_expr(stmt.condition)
+        lines.append(self._indent(f"while {condition}:"))
+        
+        self.indent_level += 1
+        if stmt.body:
+            for s in stmt.body:
+                lines.append(self._transpile_stmt(s))
+        else:
+            lines.append(self._indent("pass"))
+        self.indent_level -= 1
+        
+        return "\n".join(lines)
     
     def _transpile_let_with_try(self, var_name: str, try_expr: TryExpr) -> str:
         """

@@ -23,7 +23,7 @@ from ..ast import (
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, ExprStmt, ReturnStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -42,6 +42,7 @@ from ..diagnostics import (
     cannot_negate_error, wrong_type_arity_error, unknown_type_error,
     try_not_result_error, try_outside_result_fn_error, try_error_type_mismatch_error,
     match_not_exhaustive_error, match_invalid_pattern_error,
+    assignment_to_immutable_error,
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
@@ -63,6 +64,8 @@ class TypeError:
     message: str
     line: int
     column: int
+    code: str = "E0000"  # Default code for legacy errors
+    hints: list[str] | None = None  # Hints for fixing the error
     
     def __str__(self) -> str:
         return f"[{self.line}:{self.column}] {self.message}"
@@ -73,7 +76,9 @@ class TypeError:
         return cls(
             message=diag.message,
             line=diag.span.start.line,
-            column=diag.span.start.column
+            column=diag.span.start.column,
+            code=diag.code,
+            hints=diag.hints if diag.hints else None,
         )
 
 
@@ -89,6 +94,7 @@ class VarInfo:
     span: Span | None = None
     is_parameter: bool = False
     used: bool = False
+    mutable: bool = False  # True for 'let mut' variables
 
 
 # =============================================================================
@@ -107,10 +113,10 @@ class TypeEnv:
         self.var_info: dict[str, VarInfo] = {}  # Extended info for warnings
         self.functions: dict[str, tuple[list[OwlType], OwlType]] = {}
     
-    def define_var(self, name: str, typ: OwlType, span: Span | None = None, is_parameter: bool = False) -> None:
+    def define_var(self, name: str, typ: OwlType, span: Span | None = None, is_parameter: bool = False, mutable: bool = False) -> None:
         """Define a variable in current scope."""
         self.variables[name] = typ
-        self.var_info[name] = VarInfo(name=name, typ=typ, span=span, is_parameter=is_parameter)
+        self.var_info[name] = VarInfo(name=name, typ=typ, span=span, is_parameter=is_parameter, mutable=mutable)
     
     def lookup_var(self, name: str) -> OwlType | None:
         """Look up a variable, searching parent scopes."""
@@ -126,6 +132,14 @@ class TypeEnv:
             self.var_info[name].used = True
         elif self.parent:
             self.parent.mark_var_used(name)
+    
+    def is_var_mutable(self, name: str) -> bool | None:
+        """Check if a variable is mutable. Returns None if not found."""
+        if name in self.var_info:
+            return self.var_info[name].mutable
+        if self.parent:
+            return self.parent.is_var_mutable(name)
+        return None
     
     def get_unused_vars(self) -> list[VarInfo]:
         """Get all unused variables in this scope (not parent scopes)."""
@@ -466,12 +480,16 @@ class TypeChecker:
         """Check a statement for type errors."""
         if isinstance(stmt, LetStmt):
             self._check_let(stmt)
+        elif isinstance(stmt, AssignStmt):
+            self._check_assign(stmt)
         elif isinstance(stmt, ExprStmt):
             self._check_expr(stmt.expr)
             # Note: _check_ignored_value is called in _check_function loop
             # to avoid warning for implicit returns
         elif isinstance(stmt, ReturnStmt):
             self._check_return(stmt)
+        elif isinstance(stmt, WhileStmt):
+            self._check_while(stmt)
         elif isinstance(stmt, IfStmt):
             self._check_if(stmt)
     
@@ -506,10 +524,51 @@ class TypeChecker:
                     1, 1  # TODO: track actual line/column in AST
                 )
             # Use the annotated type for the variable
-            self.env.define_var(stmt.name, expected_type, span=stmt.span)
+            self.env.define_var(stmt.name, expected_type, span=stmt.span, mutable=stmt.mutable)
         else:
             # Define variable with inferred type
-            self.env.define_var(stmt.name, value_type, span=stmt.span)
+            self.env.define_var(stmt.name, value_type, span=stmt.span, mutable=stmt.mutable)
+    
+    def _check_assign(self, stmt: AssignStmt) -> None:
+        """Check assignment statement."""
+        # Check if variable exists
+        var_type = self.env.lookup_var(stmt.name)
+        if var_type is None:
+            span = self._get_span(stmt)
+            self._add_diagnostic(undefined_variable_error(stmt.name, span))
+            return
+        
+        # Check if variable is mutable
+        is_mutable = self.env.is_var_mutable(stmt.name)
+        if not is_mutable:
+            span = self._get_span(stmt)
+            self._add_diagnostic(assignment_to_immutable_error(stmt.name, span))
+            return
+        
+        # Check type compatibility
+        value_type = self._check_expr(stmt.value)
+        if not types_compatible(var_type, value_type):
+            span = self._get_span(stmt)
+            self._add_diagnostic(type_mismatch_error(str(var_type), str(value_type), span))
+        
+        # Mark as used
+        self.env.mark_var_used(stmt.name)
+    
+    def _check_while(self, stmt: WhileStmt) -> None:
+        """Check while statement."""
+        cond_type = self._check_expr(stmt.condition)
+        
+        # Check for constant condition (while true / while false)
+        self._check_constant_condition(stmt.condition)
+        
+        # Condition should be Bool (or compatible)
+        if cond_type not in (BOOL, ANY, UNKNOWN):
+            span = self._get_span(stmt.condition)
+            self._add_diagnostic(condition_not_bool_error(str(cond_type), span))
+        
+        # Check body
+        for s in stmt.body:
+            self._check_stmt(s)
     
     def _check_return(self, stmt: ReturnStmt) -> None:
         """Check return statement."""

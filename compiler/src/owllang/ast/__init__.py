@@ -33,8 +33,10 @@ from owllang.ast.nodes import (
     # Statements
     Stmt,
     LetStmt,
+    AssignStmt,
     ExprStmt,
     ReturnStmt,
+    WhileStmt,
     IfStmt,
     # Declarations
     Parameter,
@@ -73,8 +75,10 @@ __all__ = [
     # Statements
     "Stmt",
     "LetStmt",
+    "AssignStmt",
     "ExprStmt",
     "ReturnStmt",
+    "WhileStmt",
     "IfStmt",
     # Declarations
     "Parameter",

@@ -1,437 +1,378 @@
-# OwlLang Development Roadmap
+# OwlLang Roadmap
 
-## Vision Timeline
-
-```
-2024 Q1-Q2    2024 Q3-Q4    2025 Q1-Q2    2025 Q3-Q4    2026+
-    │             │             │             │           │
-    ▼             ▼             ▼             ▼           ▼
-┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐
-│Phase 1 │   │Phase 2 │   │Phase 3 │   │Phase 4 │   │Phase 5 │
-│  MVP   │──▶│ Beta   │──▶│  1.0   │──▶│  Perf  │──▶│ Native │
-└────────┘   └────────┘   └────────┘   └────────┘   └────────┘
- Core Lang    Complete     Stable       OwlVM       LLVM
- Transpiler   Features     Release      Runtime     Backend
-```
+This document outlines the planned development of OwlLang.
 
 ---
 
-## Phase 1: MVP (Minimum Viable Product)
+## Philosophy
 
-**Timeline:** 3-4 months  
-**Goal:** Working language that transpiles to Python
+| Series    | Theme                                            |
+| --------- | ------------------------------------------------ |
+| **0.1.x** | Correct language — solid types, diagnostics, CLI |
+| **0.2.x** | Useful language — loops, lists, real programs    |
+| **0.3.x** | Expressive language — methods, enums, closures   |
+| **0.4.x** | Powerful language — generics, traits, modules    |
 
-### 1.1 Core Compiler (Month 1-2)
+---
 
-- [ ] **Lexer**
-  - [ ] Token definitions
-  - [ ] Keyword recognition
-  - [ ] String/number literals
-  - [ ] Comment handling
-  - [ ] Error recovery
+## Series 0.2.x — Practical Programming
 
-- [ ] **Parser**
-  - [ ] Expression parsing (precedence climbing)
-  - [ ] Statement parsing
-  - [ ] Function declarations
-  - [ ] Basic pattern matching
-  - [ ] Error messages with line numbers
+> **Goal:** Enable writing real algorithms — sorting, searching, data processing.
 
-- [ ] **Type System (Basic)**
-  - [ ] Primitive types (Int, Float, String, Bool)
-  - [ ] Type inference for let bindings
-  - [ ] Function type signatures
-  - [ ] Generic functions (basic)
-  - [ ] Option[T] and Result[T, E]
+### v0.2.0-alpha — While Loop + Mutability ✅ COMPLETE
 
-### 1.2 Python Transpiler (Month 2-3)
-
-- [ ] **Code Generation**
-  - [ ] Expression translation
-  - [ ] Statement translation
-  - [ ] Function generation
-  - [ ] Class/struct generation
-  - [ ] Import handling
-
-- [ ] **Python Interop**
-  - [ ] `from python import` syntax
-  - [ ] Type marshaling (basic)
-  - [ ] Exception bridging
-  - [ ] Python function calls
-
-### 1.3 CLI & Tools (Month 3-4)
-
-- [ ] **owl CLI**
-  - [ ] `owl run <file>` - Compile and run
-  - [ ] `owl build <file>` - Compile only
-  - [ ] `owl check <file>` - Type check only
-  - [ ] `owl fmt <file>` - Format code
-  - [ ] `owl repl` - Interactive mode
-
-- [ ] **Project Structure**
-  - [ ] `owl.toml` configuration
-  - [ ] Module resolution
-  - [ ] Dependency management (basic)
-
-### MVP Deliverables
+**Adds:** `while` loop and `let mut` for local mutability.
 
 ```owl
-// This should work at end of Phase 1:
-
-from python import requests
-from python import json
-
-struct User {
-    name: String,
-    email: String
-}
-
-fn fetch_user(id: Int) -> Result[User, String] {
-    try {
-        let response = requests.get("https://api.example.com/users/{id}")
-        let data = response.json()
-        Ok(User { name: data["name"], email: data["email"] })
-    } catch e {
-        Err("Failed to fetch: {e}")
+fn countdown(n: Int) -> Void {
+    let mut i = n
+    while i > 0 {
+        print(i)
+        i = i - 1
     }
+    print("Liftoff!")
+}
+```
+
+**What becomes possible:**
+- Counters and countdowns
+- Iterative algorithms
+- Input loops
+
+**Scope:**
+- Lexer: `while`, `mut` keywords ✅
+- Parser: `WhileStmt`, mutability in `LetStmt` ✅
+- TypeChecker: condition must be `Bool`, track mutability ✅
+- Transpiler: `while condition:` ✅
+- New error: E0323 "cannot assign to immutable variable" ✅
+- 17 new tests, 482 total passing
+
+---
+
+### v0.2.1-alpha — Break and Continue
+
+**Adds:** `break` and `continue` statements.
+
+```owl
+fn find_first_negative(numbers: List[Int]) -> Option[Int] {
+    let mut i = 0
+    while i < len(numbers) {
+        let n = get(numbers, i)
+        if n < 0 {
+            return Some(n)
+        }
+        i = i + 1
+    }
+    None
+}
+```
+
+**What becomes possible:**
+- Early exit from loops
+- Skip iterations
+- Search with short-circuit
+
+**Scope:**
+- Lexer: `break`, `continue` keywords
+- Parser: `BreakStmt`, `ContinueStmt`
+- TypeChecker: must be inside loop
+- New errors: E0602 "break outside of loop", E0603 "continue outside of loop"
+
+---
+
+### v0.2.2-alpha — Lists
+
+**Adds:** `List[T]` type with basic operations.
+
+```owl
+fn sum_all(numbers: List[Int]) -> Int {
+    let mut total = 0
+    let mut i = 0
+    while i < len(numbers) {
+        total = total + get(numbers, i)
+        i = i + 1
+    }
+    total
 }
 
 fn main() {
-    match fetch_user(1) {
-        Ok(user) => print("Found: {user.name}"),
-        Err(e) => print("Error: {e}")
-    }
+    let nums = [1, 2, 3, 4, 5]
+    print(sum_all(nums))  // 15
 }
 ```
 
----
+**Built-in operations:**
+| Function   | Signature               | Description                           |
+| ---------- | ----------------------- | ------------------------------------- |
+| `len`      | `List[T] -> Int`        | Length of list                        |
+| `get`      | `List[T], Int -> T`     | Get element (panics if out of bounds) |
+| `push`     | `List[T], T -> List[T]` | Append element (returns new list)     |
+| `is_empty` | `List[T] -> Bool`       | Check if empty                        |
 
-## Phase 2: Beta Release
+**What becomes possible:**
+- Sum, average, min/max
+- Linear search
+- Manual filtering
+- Data processing
 
-**Timeline:** 4-5 months  
-**Goal:** Feature-complete language for early adopters
-
-### 2.1 Complete Type System (Month 1-2)
-
-- [ ] **Advanced Generics**
-  - [ ] Type bounds/constraints
-  - [ ] Higher-kinded types (basic)
-  - [ ] Associated types
-  - [ ] Variance annotations
-
-- [ ] **Pattern Matching (Full)**
-  - [ ] Exhaustiveness checking
-  - [ ] Or-patterns
-  - [ ] Guard clauses
-  - [ ] Nested patterns
-  - [ ] List/array patterns
-
-- [ ] **Traits**
-  - [ ] Trait definitions
-  - [ ] Trait implementations
-  - [ ] Default methods
-  - [ ] Trait bounds on generics
-  - [ ] Automatic derive
-
-### 2.2 Advanced Features (Month 2-3)
-
-- [ ] **Concurrency**
-  - [ ] `async`/`await` syntax
-  - [ ] `spawn` for tasks
-  - [ ] Channels (bounded/unbounded)
-  - [ ] `parallel_map` and friends
-  - [ ] `select` for multiple channels
-
-- [ ] **Operators**
-  - [ ] Pipe operator `|>`
-  - [ ] Null-coalescing `??`
-  - [ ] Error propagation `?`
-  - [ ] Custom operators (limited)
-
-- [ ] **Macros (Basic)**
-  - [ ] `@derive` macro
-  - [ ] `@test` macro
-  - [ ] `@bench` macro
-  - [ ] Custom attribute syntax
-
-### 2.3 Standard Library (Month 3-4)
-
-- [ ] **Core**
-  - [ ] Option[T] with full API
-  - [ ] Result[T, E] with full API
-  - [ ] String operations
-  - [ ] Collections (List, Map, Set)
-
-- [ ] **I/O**
-  - [ ] File reading/writing
-  - [ ] Path operations
-  - [ ] Console I/O
-  - [ ] Environment variables
-
-- [ ] **Data**
-  - [ ] JSON parsing/generation
-  - [ ] Date/time handling
-  - [ ] Regular expressions
-  - [ ] Random numbers
-
-### 2.4 Tooling (Month 4-5)
-
-- [ ] **Language Server (LSP)**
-  - [ ] Syntax highlighting
-  - [ ] Autocomplete
-  - [ ] Go to definition
-  - [ ] Find references
-  - [ ] Inline errors
-
-- [ ] **VS Code Extension**
-  - [ ] Syntax highlighting
-  - [ ] Snippets
-  - [ ] LSP integration
-  - [ ] Debugger support
-
-- [ ] **Package Manager**
-  - [ ] `owl add <package>`
-  - [ ] `owl remove <package>`
-  - [ ] Version resolution
-  - [ ] Lock file
-  - [ ] Registry (owl-packages.dev)
+**Scope:**
+- Lexer: `[`, `]` for list literals
+- Parser: `ListLiteral` node
+- TypeChecker: infer element type, verify homogeneity
+- Built-in functions in runtime
 
 ---
 
-## Phase 3: Version 1.0 (Stable)
+### v0.2.3-alpha — For Loop
 
-**Timeline:** 4-5 months  
-**Goal:** Production-ready language
-
-### 3.1 Stability & Polish (Month 1-2)
-
-- [ ] **Compiler Hardening**
-  - [ ] Fuzzing tests
-  - [ ] Edge case handling
-  - [ ] Memory leak prevention
-  - [ ] Performance benchmarks
-
-- [ ] **Error Messages**
-  - [ ] Rich, contextual errors
-  - [ ] Suggestions for fixes
-  - [ ] IDE integration
-  - [ ] Colored output
-
-- [ ] **Documentation**
-  - [ ] Language reference
-  - [ ] Standard library docs
-  - [ ] Tutorial series
-  - [ ] Best practices guide
-
-### 3.2 Testing Framework (Month 2-3)
-
-- [ ] **owl-test**
-  - [ ] Unit testing
-  - [ ] Property-based testing
-  - [ ] Mocking support
-  - [ ] Coverage reports
-  - [ ] Benchmark framework
+**Adds:** `for item in collection` loop.
 
 ```owl
-@test
-fn test_user_creation() {
-    let user = User.new("Alice", 30)
-    assert_eq(user.name, "Alice")
-    assert_eq(user.age, 30)
+fn sum_all(numbers: List[Int]) -> Int {
+    let mut total = 0
+    for n in numbers {
+        total = total + n
+    }
+    total
 }
 
-@property
-fn prop_sort_idempotent(list: List[Int]) {
-    assert_eq(list.sort(), list.sort().sort())
+fn find_negative(numbers: List[Int]) -> Option[Int] {
+    for n in numbers {
+        if n < 0 {
+            return Some(n)
+        }
+    }
+    None
+}
+```
+
+**What becomes possible:**
+- Idiomatic iteration
+- Cleaner code, fewer index errors
+- Familiar patterns for Python/JS developers
+
+**Scope:**
+- Parser: `ForStmt` with pattern and iterable
+- TypeChecker: iterable must be `List[T]`, bind item as `T`
+- Transpiler: `for item in collection:`
+- `break`/`continue` work inside `for`
+
+---
+
+### v0.2.4-alpha — Infinite Loop and Ranges
+
+**Adds:** `loop` (infinite) and `range(start, end)`.
+
+```owl
+fn read_until_quit() -> List[String] {
+    let mut inputs: List[String] = []
+    loop {
+        let input = read_line()
+        if input == "quit" {
+            break
+        }
+        inputs = push(inputs, input)
+    }
+    inputs
 }
 
-@bench
-fn bench_fibonacci() {
-    for _ in 0..1000 {
-        fibonacci(30)
+fn factorial(n: Int) -> Int {
+    let mut result = 1
+    for i in range(1, n + 1) {
+        result = result * i
+    }
+    result
+}
+```
+
+**What becomes possible:**
+- Event/input loops
+- Simple servers
+- Numeric algorithms (factorial, fibonacci)
+- Game loops
+
+**Scope:**
+- Parser: `LoopStmt` (no condition)
+- Built-in: `range(start, end) -> List[Int]`
+- Warning: W0401 "loop without break or return"
+
+---
+
+### v0.2.5-alpha — Structs
+
+**Adds:** User-defined composite types.
+
+```owl
+struct Point {
+    x: Float,
+    y: Float
+}
+
+fn distance(p1: Point, p2: Point) -> Float {
+    let dx = p2.x - p1.x
+    let dy = p2.y - p1.y
+    sqrt(dx * dx + dy * dy)
+}
+
+fn main() {
+    let points = [
+        Point { x: 0.0, y: 0.0 },
+        Point { x: 3.0, y: 4.0 }
+    ]
+    for p in points {
+        print(p.x)
     }
 }
 ```
 
-### 3.3 Advanced Python Interop (Month 3-4)
+**What becomes possible:**
+- Entity representation (User, Product, Config)
+- Domain modeling
+- Structured return values
+- Data grouping
 
-- [ ] **Type Stubs**
-  - [ ] Generate .owl stubs from Python
-  - [ ] Type inference for Python libs
-  - [ ] numpy type support
-  - [ ] pandas type support
-
-- [ ] **Two-Way Interop**
-  - [ ] Call OwlLang from Python
-  - [ ] Export OwlLang packages to PyPI
-  - [ ] Seamless mixing in projects
-
-### 3.4 Production Features (Month 4-5)
-
-- [ ] **Deployment**
-  - [ ] Single-file executables
-  - [ ] Docker integration
-  - [ ] Cloud function support
-  - [ ] WASM compilation (basic)
-
-- [ ] **Debugging**
-  - [ ] Source maps
-  - [ ] Breakpoint support
-  - [ ] Variable inspection
-  - [ ] Stack traces
+**Scope:**
+- Parser: `StructDecl`, `StructLiteral`
+- TypeChecker: type registry, field verification
+- Transpiler: Python `@dataclass`
+- No methods yet (free functions only)
 
 ---
 
-## Phase 4: Performance (OwlVM)
+### v0.2.6-alpha — Polish and Stabilization
 
-**Timeline:** 6-8 months  
-**Goal:** Custom runtime for better performance
+**Focus:** Consistency, edge cases, documentation.
 
-### 4.1 OwlVM Design (Month 1-3)
-
-- [ ] **Bytecode Format**
-  - [ ] Instruction set design
-  - [ ] Bytecode serialization
-  - [ ] Debug symbols
-
-- [ ] **Virtual Machine**
-  - [ ] Stack-based interpreter
-  - [ ] Register-based (optional)
-  - [ ] Garbage collector
-  - [ ] JIT preparation
-
-### 4.2 Implementation (Month 3-6)
-
-- [ ] **Core VM**
-  - [ ] Basic execution
-  - [ ] Memory management
-  - [ ] Exception handling
-  - [ ] FFI to Python (ctypes)
-
-- [ ] **Concurrency Runtime**
-  - [ ] Green threads
-  - [ ] No GIL
-  - [ ] Work-stealing scheduler
-  - [ ] Channel implementation
-
-### 4.3 Optimization (Month 6-8)
-
-- [ ] **JIT Compiler**
-  - [ ] Hot path detection
-  - [ ] Basic optimizations
-  - [ ] Inline caching
-  - [ ] Type specialization
+- Refined error messages for new features
+- Integration tests for complete programs
+- Updated examples
+- STABILITY.md updated for 0.2.x
+- Performance pass on large lists
 
 ---
 
-## Phase 5: Native Compilation
+## Summary Table
 
-**Timeline:** 8-12 months  
-**Goal:** Native binary generation via LLVM
-
-### 5.1 LLVM Backend (Month 1-4)
-
-- [ ] **IR Generation**
-  - [ ] LLVM IR from TAST
-  - [ ] Type lowering
-  - [ ] Memory layout
-  - [ ] ABI compatibility
-
-### 5.2 Runtime Library (Month 4-8)
-
-- [ ] **Native Runtime**
-  - [ ] Garbage collector (native)
-  - [ ] String implementation
-  - [ ] Collections implementation
-  - [ ] Python FFI layer
-
-### 5.3 Platform Support (Month 8-12)
-
-- [ ] **Targets**
-  - [ ] Linux x86_64
-  - [ ] macOS (Intel + ARM)
-  - [ ] Windows x86_64
-  - [ ] WebAssembly
+| Release | Feature              | New Capability              |
+| ------- | -------------------- | --------------------------- |
+| 0.2.0   | `while` + `let mut`  | Basic iterative loops       |
+| 0.2.1   | `break` / `continue` | Early exit, skip iterations |
+| 0.2.2   | `List[T]`            | Collection processing       |
+| 0.2.3   | `for in`             | Idiomatic iteration         |
+| 0.2.4   | `loop` + `range`     | Event loops, sequences      |
+| 0.2.5   | `struct`             | Data modeling               |
+| 0.2.6   | Polish               | Production confidence       |
 
 ---
 
-## Success Metrics by Phase
+## Validation Program
 
-| Phase  | Metric             | Target               |
-| ------ | ------------------ | -------------------- |
-| MVP    | Transpiler working | 100% Python compat   |
-| MVP    | Core syntax        | All examples compile |
-| Beta   | Standard library   | 80% coverage         |
-| Beta   | LSP                | Autocomplete working |
-| 1.0    | Test framework     | Full coverage        |
-| 1.0    | Documentation      | Complete reference   |
-| OwlVM  | Performance        | 2x Python            |
-| Native | Performance        | 10x Python           |
+At the end of 0.2.x, this program must compile and run:
 
----
+```owl
+struct Stats {
+    min: Int,
+    max: Int,
+    sum: Int
+}
 
-## Community Milestones
+fn bubble_sort(items: List[Int]) -> List[Int] {
+    let mut arr = items
+    let n = len(arr)
+    let mut i = 0
+    while i < n {
+        let mut j = 0
+        while j < n - i - 1 {
+            let a = get(arr, j)
+            let b = get(arr, j + 1)
+            if a > b {
+                arr = swap(arr, j, j + 1)
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    arr
+}
 
-```
-Phase 1 End:
-├── Open source release
-├── GitHub repository
-└── Discord/Discourse community
+fn compute_stats(numbers: List[Int]) -> Stats {
+    let mut min_val = get(numbers, 0)
+    let mut max_val = get(numbers, 0)
+    let mut sum = 0
+    
+    for n in numbers {
+        if n < min_val { min_val = n }
+        if n > max_val { max_val = n }
+        sum = sum + n
+    }
+    
+    Stats { min: min_val, max: max_val, sum: sum }
+}
 
-Phase 2 End:
-├── 100 GitHub stars
-├── 10 contributors
-└── First external package
-
-Phase 3 End:
-├── 1,000 GitHub stars
-├── 50 contributors
-├── First production user
-└── OwlConf (online event)
-
-Phase 4+ End:
-├── 10,000 GitHub stars
-├── Foundation/governance
-└── Corporate sponsors
+fn main() {
+    let data = [5, 2, 8, 1, 9, 3]
+    let sorted = bubble_sort(data)
+    let stats = compute_stats(sorted)
+    
+    print("Min: " + stats.min)
+    print("Max: " + stats.max)
+    print("Sum: " + stats.sum)
+}
 ```
 
 ---
 
-## Resource Requirements
+## What's NOT in 0.2.x
 
-### Team (Ideal)
-
-| Role              | Count | Phase |
-| ----------------- | ----- | ----- |
-| Compiler engineer | 2     | 1-5   |
-| Runtime engineer  | 1     | 4-5   |
-| DevTools engineer | 1     | 2-3   |
-| Technical writer  | 1     | 2+    |
-| Community manager | 1     | 2+    |
-
-### Infrastructure
-
-- CI/CD (GitHub Actions)
-- Package registry (owl-packages.dev)
-- Documentation site (owllang.dev)
-- Playground (play.owllang.dev)
+| Feature                     | Reason                      | Planned |
+| --------------------------- | --------------------------- | ------- |
+| Methods (`impl`)            | Requires stable structs     | 0.3.0   |
+| Custom enums                | Needs generics to be useful | 0.3.x   |
+| Generics                    | Requires mature type system | 0.3.x   |
+| Traits                      | Requires generics           | 0.4.x   |
+| Closures/lambdas            | Capture complexity          | 0.3.x   |
+| Pattern matching on structs | Requires stable structs     | 0.3.x   |
+| Field mutability            | Complex design              | 0.3.x   |
 
 ---
 
-## Getting Started Today
+## Future Series (Tentative)
 
-```bash
-# Clone the repository
-git clone https://github.com/owl-lang/owl
-cd owl
+### 0.3.x — Expressiveness
+- Methods on structs (`impl`)
+- Custom enums with variants
+- Closures and lambdas
+- Pattern matching on structs
+- Map/filter/reduce
 
-# Build the compiler
-cargo build --release
+### 0.4.x — Abstraction
+- Generics for structs and functions
+- Traits (interfaces)
+- Trait bounds
+- Standard traits: `Display`, `Eq`, `Hash`
 
-# Run your first OwlLang program
-./target/release/owl run examples/hello.owl
-```
+### 0.5.x — Organization
+- Modules and namespaces
+- Visibility (pub/private)
+- Multi-file projects
+- Package structure
 
-**Current Status:** Phase 1 in development
+### 1.0.x — Production
+- LSP / IDE support
+- Documentation generator
+- Package manager integration
+- Backward compatibility guarantees
 
-**Want to contribute?** See [CONTRIBUTING.md](./CONTRIBUTING.md)
+---
+
+## Design Principles
+
+1. **Immutable by default** — `let mut` is explicit opt-in
+2. **No inheritance** — Composition and traits only
+3. **Exhaustive matching** — All cases must be handled
+4. **Python interop** — Clean transpilation, dataclasses, etc.
+5. **Incremental releases** — Each release is independently usable
+
+---
+
+*Last updated: v0.1.6-alpha (January 2026)*

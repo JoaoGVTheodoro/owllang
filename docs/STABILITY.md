@@ -152,12 +152,12 @@ The generated Python code may change (style, optimization), but:
 
 The following test suites enforce stability:
 
-| Suite | Purpose |
-|-------|---------|
-| `test_invariants.py` | Compiler invariants |
-| `test_cli_ux.py` | CLI behavior and exit codes |
-| `test_semantic_consistency.py` | Language semantics |
-| `test_diagnostics.py` | Error/warning format |
+| Suite                          | Purpose                     |
+| ------------------------------ | --------------------------- |
+| `test_invariants.py`           | Compiler invariants         |
+| `test_cli_ux.py`               | CLI behavior and exit codes |
+| `test_semantic_consistency.py` | Language semantics          |
+| `test_diagnostics.py`          | Error/warning format        |
 
 All tests must pass before any release.
 
@@ -176,12 +176,12 @@ If you believe a stability guarantee has been violated:
 
 ## Changelog
 
-| Version | Stability Changes |
-|---------|-------------------|
+| Version      | Stability Changes          |
+| ------------ | -------------------------- |
 | v0.1.6-alpha | Initial stability contract |
-| v0.1.5-alpha | CLI exit codes finalized |
-| v0.1.4-alpha | Semantic consistency pass |
-| v0.1.0-alpha | Initial language design |
+| v0.1.5-alpha | CLI exit codes finalized   |
+| v0.1.4-alpha | Semantic consistency pass  |
+| v0.1.0-alpha | Initial language design    |
 
 ---
 
