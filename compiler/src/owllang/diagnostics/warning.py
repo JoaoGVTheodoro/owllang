@@ -112,3 +112,12 @@ def constant_condition_warning(value: bool, span: Span) -> Warning:
         message=f"condition is always `{str(value).lower()}`",
         span=span,
     ).with_note(f"this branch will {'always' if value else 'never'} execute")
+
+
+def loop_without_exit_warning(span: Span) -> Warning:
+    """Create a warning for a loop without break or return."""
+    return Warning(
+        code=WarningCode.LOOP_WITHOUT_EXIT,
+        message="`loop` without `break` or `return`",
+        span=span,
+    ).with_hint("add a `break` or `return` statement to exit the loop")

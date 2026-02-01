@@ -44,6 +44,7 @@ from .warning import (
     result_ignored_warning,
     option_ignored_warning,
     constant_condition_warning,
+    loop_without_exit_warning,
 )
 from .printer import DiagnosticPrinter, print_diagnostics
 
@@ -89,6 +90,7 @@ __all__ = [
     "result_ignored_warning",
     "option_ignored_warning",
     "constant_condition_warning",
+    "loop_without_exit_warning",
     # Printer
     "DiagnosticPrinter",
     "print_diagnostics",

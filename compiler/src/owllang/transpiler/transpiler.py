@@ -14,7 +14,7 @@ from ..ast import (
     # Pattern Matching
     MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, LoopStmt, IfStmt,
     # Declarations
     FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -284,6 +284,8 @@ class Transpiler:
             return self._transpile_while(stmt)
         elif isinstance(stmt, ForInStmt):
             return self._transpile_for_in(stmt)
+        elif isinstance(stmt, LoopStmt):
+            return self._transpile_loop(stmt)
         elif isinstance(stmt, BreakStmt):
             return self._transpile_break(stmt)
         elif isinstance(stmt, ContinueStmt):
@@ -340,6 +342,21 @@ class Transpiler:
         lines: list[str] = []
         collection = self._transpile_expr(stmt.collection)
         lines.append(self._indent(f"for {stmt.item_name} in {collection}:"))
+        
+        self.indent_level += 1
+        if stmt.body:
+            for s in stmt.body:
+                lines.append(self._transpile_stmt(s))
+        else:
+            lines.append(self._indent("pass"))
+        self.indent_level -= 1
+        
+        return "\n".join(lines)
+    
+    def _transpile_loop(self, stmt: LoopStmt) -> str:
+        """Transpile: loop { body } → while True: body"""
+        lines: list[str] = []
+        lines.append(self._indent("while True:"))
         
         self.indent_level += 1
         if stmt.body:

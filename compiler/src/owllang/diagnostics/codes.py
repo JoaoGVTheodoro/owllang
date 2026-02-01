@@ -86,6 +86,7 @@ class WarningCode(Enum):
     UNREACHABLE_CODE = "W0201"
     UNUSED_FUNCTION = "W0202"
     REDUNDANT_RETURN = "W0203"
+    LOOP_WITHOUT_EXIT = "W0204"
     
     # Style warnings (W03xx)
     REDUNDANT_MATCH = "W0301"  # match on single case

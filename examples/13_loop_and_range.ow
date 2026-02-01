@@ -1,0 +1,85 @@
+// Example 13: Loop and Range
+// OwlLang v0.2.4-alpha - Completing the iteration model
+
+// range(start, end) produces a list [start, start+1, ..., end-1]
+fn print_countdown() {
+    print("Countdown:")
+    for i in range(5, 0) {
+        print(i)
+    }
+    // Oops! range(5, 0) is empty since 5 > 0
+    // Let's fix it:
+    for i in [5, 4, 3, 2, 1] {
+        print(i)
+    }
+    print("Blastoff!")
+}
+
+// loop {} runs forever until break or return
+fn find_first_prime_above(n: Int) -> Int {
+    let mut candidate = n + 1
+    loop {
+        if is_prime(candidate) {
+            return candidate
+        }
+        candidate = candidate + 1
+    }
+    // This line is unreachable but needed for return type
+    0
+}
+
+fn is_prime(n: Int) -> Bool {
+    if n < 2 {
+        return false
+    }
+    let mut i = 2
+    loop {
+        if i * i > n {
+            break
+        }
+        if n % i == 0 {
+            return false
+        }
+        i = i + 1
+    }
+    true
+}
+
+// Computing factorial with range
+fn factorial(n: Int) -> Int {
+    let mut result = 1
+    for i in range(1, n + 1) {
+        result = result * i
+    }
+    result
+}
+
+// Summing a range
+fn sum_range(start: Int, end: Int) -> Int {
+    let mut total = 0
+    for x in range(start, end) {
+        total = total + x
+    }
+    total
+}
+
+fn main() {
+    // Using range for indexed iteration
+    let names = ["Alice", "Bob", "Charlie"]
+    for i in range(0, len(names)) {
+        let name = get(names, i)
+        print(name)
+    }
+    
+    // Finding primes
+    print("First prime above 10:")
+    print(find_first_prime_above(10))
+    
+    // Factorial
+    print("5! =")
+    print(factorial(5))
+    
+    // Sum of 1 to 10
+    print("Sum 1..10 =")
+    print(sum_range(1, 11))
+}

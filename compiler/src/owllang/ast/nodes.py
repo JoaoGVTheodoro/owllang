@@ -48,6 +48,7 @@ class TokenType(Enum):
     CONTINUE = auto()  # continue
     FOR = auto()  # for
     IN = auto()  # in
+    LOOP = auto()  # loop
     FROM = auto()
     PYTHON = auto()
     IMPORT = auto()
@@ -389,6 +390,14 @@ class ForInStmt(Stmt):
 
     item_name: str
     collection: Expr
+    body: list[Stmt]
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class LoopStmt(Stmt):
+    """Infinite loop: loop { body }"""
+
     body: list[Stmt]
     span: Optional[Span] = field(default=None, compare=False)
 

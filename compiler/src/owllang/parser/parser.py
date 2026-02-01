@@ -18,7 +18,7 @@ from ..ast import (
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, LoopStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -41,6 +41,7 @@ SYNC_TOKENS = frozenset({
     TokenType.IF,
     TokenType.WHILE,
     TokenType.FOR,
+    TokenType.LOOP,
     TokenType.BREAK,
     TokenType.CONTINUE,
     TokenType.FROM,
@@ -320,6 +321,8 @@ class Parser:
             return self._parse_while_stmt()
         elif self._check(TokenType.FOR):
             return self._parse_for_in_stmt()
+        elif self._check(TokenType.LOOP):
+            return self._parse_loop_stmt()
         elif self._check(TokenType.BREAK):
             return self._parse_break_stmt()
         elif self._check(TokenType.CONTINUE):
@@ -382,6 +385,13 @@ class Parser:
         collection = self._parse_expr()
         body = self._parse_block()
         return ForInStmt(item_token.value, collection, body)
+    
+    def _parse_loop_stmt(self) -> LoopStmt:
+        """Parse: loop { body }"""
+        token = self._expect(TokenType.LOOP, "Expected 'loop'")
+        span = token.span("<unknown>")
+        body = self._parse_block()
+        return LoopStmt(body, span=span)
     
     def _parse_return_stmt(self) -> ReturnStmt:
         """Parse: return [expr]"""

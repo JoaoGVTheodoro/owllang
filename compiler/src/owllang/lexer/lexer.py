@@ -39,6 +39,7 @@ class Lexer:
         'continue': TokenType.CONTINUE,
         'for': TokenType.FOR,
         'in': TokenType.IN,
+        'loop': TokenType.LOOP,
         'from': TokenType.FROM,
         'python': TokenType.PYTHON,
         'import': TokenType.IMPORT,

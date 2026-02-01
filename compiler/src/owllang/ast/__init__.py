@@ -41,6 +41,7 @@ from owllang.ast.nodes import (
     BreakStmt,
     ContinueStmt,
     ForInStmt,
+    LoopStmt,
     IfStmt,
     # Declarations
     Parameter,
@@ -87,6 +88,7 @@ __all__ = [
     "BreakStmt",
     "ContinueStmt",
     "ForInStmt",
+    "LoopStmt",
     "IfStmt",
     # Declarations
     "Parameter",

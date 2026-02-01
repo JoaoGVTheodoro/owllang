@@ -23,7 +23,7 @@ from ..ast import (
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, LoopStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -49,7 +49,7 @@ from ..diagnostics import (
     Warning,
     unused_variable_warning, unused_parameter_warning,
     unreachable_code_warning, result_ignored_warning, option_ignored_warning,
-    constant_condition_warning,
+    constant_condition_warning, loop_without_exit_warning,
 )
 
 if TYPE_CHECKING:
@@ -210,6 +210,8 @@ class TypeChecker:
         self.env.define_fn("len", [ListType(ANY)], INT)
         # is_empty(list) -> Bool
         self.env.define_fn("is_empty", [ListType(ANY)], BOOL)
+        # range(start, end) -> List[Int]
+        self.env.define_fn("range", [INT, INT], ListType(INT))
         # get and push are handled specially because of generic return types
     
     def _add_warning(self, warning: Warning) -> None:
@@ -512,6 +514,8 @@ class TypeChecker:
             self._check_while(stmt)
         elif isinstance(stmt, ForInStmt):
             self._check_for_in(stmt)
+        elif isinstance(stmt, LoopStmt):
+            self._check_loop(stmt)
         elif isinstance(stmt, BreakStmt):
             self._check_break(stmt)
         elif isinstance(stmt, ContinueStmt):
@@ -636,6 +640,39 @@ class TypeChecker:
             self.env.mark_var_used(stmt.item_name)
         finally:
             self.env = old_env
+    
+    def _check_loop(self, stmt: LoopStmt) -> None:
+        """Check loop statement: loop { body }"""
+        # Check body (inside loop context)
+        self._loop_depth += 1
+        try:
+            for s in stmt.body:
+                self._check_stmt(s)
+        finally:
+            self._loop_depth -= 1
+        
+        # Warn if loop has no break or return (infinite loop without exit)
+        if not self._body_has_exit(stmt.body):
+            span = self._get_span(stmt)
+            self._add_warning(loop_without_exit_warning(span))
+    
+    def _body_has_exit(self, body: list[Stmt]) -> bool:
+        """Check if a body has a break or return statement (possibly nested in if)."""
+        for stmt in body:
+            if isinstance(stmt, (BreakStmt, ReturnStmt)):
+                return True
+            if isinstance(stmt, IfStmt):
+                # Check if both branches have exit
+                then_has = self._body_has_exit(stmt.then_body)
+                else_has = stmt.else_body and self._body_has_exit(stmt.else_body)
+                # If only then or else has exit, loop might still exit
+                if then_has or else_has:
+                    return True
+            if isinstance(stmt, (WhileStmt, ForInStmt, LoopStmt)):
+                # Nested loops might have break/return
+                if self._body_has_exit(stmt.body):
+                    return True
+        return False
     
     def _check_break(self, stmt: BreakStmt) -> None:
         """Check break statement - must be inside a loop."""
