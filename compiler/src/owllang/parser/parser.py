@@ -7,6 +7,8 @@ Uses recursive descent parsing.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..ast import (
     Token, TokenType,
     # Expressions
@@ -22,6 +24,9 @@ from ..ast import (
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
+
+if TYPE_CHECKING:
+    from ..diagnostics.span import Span
 
 
 class ParseError(Exception):
@@ -79,9 +84,10 @@ class Parser:
         This reduces cascading errors from a single syntax mistake.
     """
     
-    def __init__(self, tokens: list[Token]) -> None:
+    def __init__(self, tokens: list[Token], filename: str = "<unknown>") -> None:
         self.tokens = tokens
         self.pos = 0
+        self.filename = filename
         self.errors: list[ParseError] = []
         self._panic_mode = False
     
@@ -232,7 +238,7 @@ class Parser:
     
     def _parse_fn_decl(self) -> FnDecl:
         """Parse: fn name(params) { body }"""
-        self._expect(TokenType.FN, "Expected 'fn'")
+        fn_token = self._expect(TokenType.FN, "Expected 'fn'")
         name_token = self._expect(TokenType.IDENT, "Expected function name")
         
         self._expect(TokenType.LPAREN, "Expected '(' after function name")
@@ -246,7 +252,7 @@ class Parser:
         
         body = self._parse_block()
         
-        return FnDecl(name_token.value, params, body, return_type)
+        return FnDecl(name_token.value, params, body, return_type, span=fn_token.span(self.filename))
     
     def _parse_type_annotation(self) -> TypeAnnotation:
         """
@@ -334,7 +340,7 @@ class Parser:
     
     def _parse_let_stmt(self) -> LetStmt:
         """Parse: let x = value or let mut x = value"""
-        self._expect(TokenType.LET, "Expected 'let'")
+        let_token = self._expect(TokenType.LET, "Expected 'let'")
         
         # Check for 'mut' keyword
         mutable = self._match(TokenType.MUT) is not None
@@ -349,64 +355,83 @@ class Parser:
         self._expect(TokenType.ASSIGN, "Expected '=' after variable name")
         value = self._parse_expr()
         
-        return LetStmt(name_token.value, value, type_annotation, mutable)
+        # Span from 'let' keyword to end of value expression
+        value_span = self._expr_span(value)
+        if value_span:
+            span = let_token.span(self.filename).merge(value_span)
+        else:
+            span = let_token.span(self.filename)
+        
+        return LetStmt(name_token.value, value, type_annotation, mutable, span=span)
     
     def _parse_assign_stmt(self) -> AssignStmt:
         """Parse: x = value (assignment to mutable variable)"""
         name_token = self._expect(TokenType.IDENT, "Expected variable name")
         self._expect(TokenType.ASSIGN, "Expected '='")
         value = self._parse_expr()
-        return AssignStmt(name_token.value, value)
+        
+        value_span = self._expr_span(value)
+        if value_span:
+            span = name_token.span(self.filename).merge(value_span)
+        else:
+            span = name_token.span(self.filename)
+        
+        return AssignStmt(name_token.value, value, span=span)
     
     def _parse_while_stmt(self) -> WhileStmt:
         """Parse: while condition { body }"""
-        self._expect(TokenType.WHILE, "Expected 'while'")
+        while_token = self._expect(TokenType.WHILE, "Expected 'while'")
         condition = self._parse_expr()
         body = self._parse_block()
-        return WhileStmt(condition, body)
+        return WhileStmt(condition, body, span=while_token.span(self.filename))
     
     def _parse_break_stmt(self) -> BreakStmt:
         """Parse: break"""
         token = self._expect(TokenType.BREAK, "Expected 'break'")
-        span = token.span("<unknown>")
+        span = token.span(self.filename)
         return BreakStmt(span=span)
     
     def _parse_continue_stmt(self) -> ContinueStmt:
         """Parse: continue"""
         token = self._expect(TokenType.CONTINUE, "Expected 'continue'")
-        span = token.span("<unknown>")
+        span = token.span(self.filename)
         return ContinueStmt(span=span)
     
     def _parse_for_in_stmt(self) -> ForInStmt:
         """Parse: for item in collection { body }"""
-        self._expect(TokenType.FOR, "Expected 'for'")
+        for_token = self._expect(TokenType.FOR, "Expected 'for'")
         item_token = self._expect(TokenType.IDENT, "Expected loop variable name")
         self._expect(TokenType.IN, "Expected 'in' after loop variable")
         collection = self._parse_expr()
         body = self._parse_block()
-        return ForInStmt(item_token.value, collection, body)
+        return ForInStmt(item_token.value, collection, body, span=for_token.span(self.filename))
     
     def _parse_loop_stmt(self) -> LoopStmt:
         """Parse: loop { body }"""
         token = self._expect(TokenType.LOOP, "Expected 'loop'")
-        span = token.span("<unknown>")
+        span = token.span(self.filename)
         body = self._parse_block()
         return LoopStmt(body, span=span)
     
     def _parse_return_stmt(self) -> ReturnStmt:
         """Parse: return [expr]"""
-        self._expect(TokenType.RETURN, "Expected 'return'")
+        return_token = self._expect(TokenType.RETURN, "Expected 'return'")
         
         # Check for empty return
         if self._check(TokenType.RBRACE):
-            return ReturnStmt(None)
+            return ReturnStmt(None, span=return_token.span(self.filename))
         
         value = self._parse_expr()
-        return ReturnStmt(value)
+        value_span = self._expr_span(value)
+        if value_span:
+            span = return_token.span(self.filename).merge(value_span)
+        else:
+            span = return_token.span(self.filename)
+        return ReturnStmt(value, span=span)
     
     def _parse_if_stmt(self) -> IfStmt:
         """Parse: if condition { body } [else { body }]"""
-        self._expect(TokenType.IF, "Expected 'if'")
+        if_token = self._expect(TokenType.IF, "Expected 'if'")
         condition = self._parse_expr()
         then_body = self._parse_block()
         
@@ -414,16 +439,28 @@ class Parser:
         if self._match(TokenType.ELSE):
             else_body = self._parse_block()
         
-        return IfStmt(condition, then_body, else_body)
+        return IfStmt(condition, then_body, else_body, span=if_token.span(self.filename))
     
     def _parse_expr_stmt(self) -> ExprStmt:
         """Parse expression as statement."""
         expr = self._parse_expr()
-        return ExprStmt(expr)
+        return ExprStmt(expr, span=self._expr_span(expr))
     
     # =========================================================================
     # Expression Parsing (Precedence Climbing)
     # =========================================================================
+    
+    def _expr_span(self, expr: Expr) -> "Span | None":
+        """Get span from an expression if available."""
+        return getattr(expr, 'span', None)
+    
+    def _merge_spans(self, left: Expr, right: Expr) -> "Span | None":
+        """Create a span covering both expressions, if spans are available."""
+        left_span = self._expr_span(left)
+        right_span = self._expr_span(right)
+        if left_span and right_span:
+            return left_span.merge(right_span)
+        return left_span or right_span
     
     def _parse_expr(self) -> Expr:
         """Parse expression (entry point)."""
@@ -442,7 +479,8 @@ class Parser:
             if not op_token:
                 break
             right = self._parse_addition()
-            expr = BinaryOp(expr, op_token.value, right)
+            span = self._merge_spans(expr, right)
+            expr = BinaryOp(expr, op_token.value, right, span=span)
         
         return expr
     
@@ -455,7 +493,8 @@ class Parser:
             if not op_token:
                 break
             right = self._parse_multiplication()
-            expr = BinaryOp(expr, op_token.value, right)
+            span = self._merge_spans(expr, right)
+            expr = BinaryOp(expr, op_token.value, right, span=span)
         
         return expr
     
@@ -468,7 +507,8 @@ class Parser:
             if not op_token:
                 break
             right = self._parse_unary()
-            expr = BinaryOp(expr, op_token.value, right)
+            span = self._merge_spans(expr, right)
+            expr = BinaryOp(expr, op_token.value, right, span=span)
         
         return expr
     
@@ -476,7 +516,12 @@ class Parser:
         """Parse: ("-") unary | call"""
         if op_token := self._match(TokenType.MINUS):
             operand = self._parse_unary()
-            return UnaryOp(op_token.value, operand)
+            operand_span = self._expr_span(operand)
+            if operand_span:
+                span = op_token.span(self.filename).merge(operand_span)
+            else:
+                span = op_token.span(self.filename)
+            return UnaryOp(op_token.value, operand, span=span)
         
         return self._parse_call()
     
@@ -485,18 +530,33 @@ class Parser:
         expr = self._parse_primary()
         
         while True:
-            if self._match(TokenType.LPAREN):
+            if lparen := self._match(TokenType.LPAREN):
                 # Function call
                 args = self._parse_arguments()
-                self._expect(TokenType.RPAREN, "Expected ')' after arguments")
-                expr = Call(expr, args)
+                rparen = self._expect(TokenType.RPAREN, "Expected ')' after arguments")
+                callee_span = self._expr_span(expr)
+                if callee_span:
+                    span = callee_span.merge(rparen.span(self.filename))
+                else:
+                    span = lparen.span(self.filename).merge(rparen.span(self.filename))
+                expr = Call(expr, args, span=span)
             elif self._match(TokenType.DOT):
                 # Field access
                 field_token = self._expect(TokenType.IDENT, "Expected field name after '.'")
-                expr = FieldAccess(expr, field_token.value)
+                base_span = self._expr_span(expr)
+                if base_span:
+                    span = base_span.merge(field_token.span(self.filename))
+                else:
+                    span = field_token.span(self.filename)
+                expr = FieldAccess(expr, field_token.value, span=span)
             elif question_tok := self._match(TokenType.QUESTION):
                 # Try operator (?)
-                expr = TryExpr(expr, span=question_tok.span())
+                base_span = self._expr_span(expr)
+                if base_span:
+                    span = base_span.merge(question_tok.span(self.filename))
+                else:
+                    span = question_tok.span(self.filename)
+                expr = TryExpr(expr, span=span)
             else:
                 break
         
@@ -520,33 +580,33 @@ class Parser:
         """Parse primary expression (literals, identifiers, grouped, match, list)."""
         # Integer
         if token := self._match(TokenType.INT):
-            return IntLiteral(int(token.value))
+            return IntLiteral(int(token.value), span=token.span(self.filename))
         
         # Float
         if token := self._match(TokenType.FLOAT):
-            return FloatLiteral(float(token.value))
+            return FloatLiteral(float(token.value), span=token.span(self.filename))
         
         # String
         if token := self._match(TokenType.STRING):
-            return StringLiteral(token.value)
+            return StringLiteral(token.value, span=token.span(self.filename))
         
         # Boolean
-        if self._match(TokenType.TRUE):
-            return BoolLiteral(True)
-        if self._match(TokenType.FALSE):
-            return BoolLiteral(False)
+        if token := self._match(TokenType.TRUE):
+            return BoolLiteral(True, span=token.span(self.filename))
+        if token := self._match(TokenType.FALSE):
+            return BoolLiteral(False, span=token.span(self.filename))
         
         # Match expression
         if match_token := self._match(TokenType.MATCH):
             return self._parse_match_expr(match_token)
         
         # List literal: [1, 2, 3]
-        if self._match(TokenType.LBRACKET):
-            return self._parse_list_literal()
+        if lbracket := self._match(TokenType.LBRACKET):
+            return self._parse_list_literal(lbracket)
         
         # Identifier
         if token := self._match(TokenType.IDENT):
-            return Identifier(token.value)
+            return Identifier(token.value, span=token.span(self.filename))
         
         # Grouped expression
         if self._match(TokenType.LPAREN):
@@ -556,14 +616,15 @@ class Parser:
         
         raise ParseError(f"Unexpected token: {self._peek().value!r}", self._peek())
     
-    def _parse_list_literal(self) -> ListLiteral:
+    def _parse_list_literal(self, lbracket_token: Token) -> ListLiteral:
         """Parse list literal: [elem1, elem2, ...]"""
         elements: list[Expr] = []
         
         # Empty list
         if self._check(TokenType.RBRACKET):
-            self._advance()
-            return ListLiteral(elements)
+            rbracket = self._advance()
+            span = lbracket_token.span(self.filename).merge(rbracket.span(self.filename))
+            return ListLiteral(elements, span=span)
         
         # Parse first element
         elements.append(self._parse_expr())
@@ -575,8 +636,9 @@ class Parser:
                 break
             elements.append(self._parse_expr())
         
-        self._expect(TokenType.RBRACKET, "Expected ']' after list elements")
-        return ListLiteral(elements)
+        rbracket = self._expect(TokenType.RBRACKET, "Expected ']' after list elements")
+        span = lbracket_token.span(self.filename).merge(rbracket.span(self.filename))
+        return ListLiteral(elements, span=span)
     
     def _parse_match_expr(self, match_token: Token) -> MatchExpr:
         """
@@ -659,7 +721,7 @@ class Parser:
         )
 
 
-def parse(tokens: list[Token]) -> Program:
+def parse(tokens: list[Token], filename: str = "<unknown>") -> Program:
     """Convenience function to parse tokens into AST."""
-    parser = Parser(tokens)
+    parser = Parser(tokens, filename)
     return parser.parse()

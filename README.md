@@ -3,19 +3,19 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.4.5--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.6--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-627%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
+[![Tests](https://img.shields.io/badge/tests-634%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
 **OwlLang** is an experimental programming language with a strong type system, first-class error handling via `Option` and `Result` types, and seamless Python interoperability. It transpiles to clean, readable Python code.
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.4.5-alpha** — a stabilization release before Structs:
-- Semantic lock tests to prevent regressions
-- Language invariants documented (evaluation order, scoping, error boundaries)
-- NOT_IMPLEMENTED.md clearly lists excluded features
-- Compiler and documentation ready for Structs (coming in v0.2.5)
+This is **v0.2.4.6-alpha** — diagnostic precision & type boundary tightening:
+- Full span propagation: all errors now point to exact source locations
+- Type system escape hatches documented (Any type behavior)
+- Zero hardcoded fallback positions in type checker
+- 634 tests including span regression tests
 - Not recommended for production use yet
 
 See [LANGUAGE.md](docs/LANGUAGE.md) for the definitive language guide.

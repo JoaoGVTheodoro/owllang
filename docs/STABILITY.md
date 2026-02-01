@@ -83,7 +83,7 @@ These features work but their API/behavior may change:
 #### Error Messages
 - The exact wording of error messages may be refined
 - Hints and notes may be added or improved
-- Span accuracy may improve
+- **v0.2.4.6+**: Span accuracy is now implemented for all diagnostics
 
 #### Warning Behavior
 - New warnings may be added
@@ -185,6 +185,7 @@ If you believe a stability guarantee has been violated:
 
 | Version        | Stability Changes                                |
 | -------------- | ------------------------------------------------ |
+| v0.2.4.6-alpha | Span precision, Any type boundaries documented   |
 | v0.2.4.5-alpha | Semantic lock tests, invariants, NOT_IMPLEMENTED |
 | v0.2.4.4-alpha | Documentation reset, LANGUAGE.md                 |
 | v0.2.4.3-alpha | Internal architecture, type registries           |
@@ -197,4 +198,4 @@ If you believe a stability guarantee has been violated:
 
 ---
 
-*This document is part of the OwlLang v0.2.4.5-alpha release.*
+*This document is part of the OwlLang v0.2.4.6-alpha release.*

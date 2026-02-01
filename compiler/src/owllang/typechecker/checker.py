@@ -352,10 +352,10 @@ class TypeChecker:
         if (self.current_function_return_type and 
             self.current_function_return_type != VOID and
             not fn.body):
-            self._error(
-                f"Function '{fn.name}' declares return type {self.current_function_return_type} but has empty body",
-                1, 1
-            )
+            span = self._get_span(fn)
+            self._add_diagnostic(return_type_mismatch_error(
+                str(self.current_function_return_type), "Void (empty body)", span
+            ))
             self.env = old_env
             self.current_function_return_type = None
             return
@@ -418,42 +418,45 @@ class TypeChecker:
                 pass
             else:
                 last_stmt = fn.body[-1]
+                last_stmt_span = self._get_span(last_stmt)
                 
                 # Check if last statement can be an implicit return
                 if isinstance(last_stmt, ExprStmt):
                     last_expr = last_stmt.expr
                     # Check if it's an if without else (not exhaustive)
                     if isinstance(last_expr, IfStmt) and not last_expr.else_body:
-                        self._error(
-                            f"Function '{fn.name}' must return {self.current_function_return_type} "
-                            "on all paths, but 'if' expression is missing 'else' branch",
-                            1, 1
-                        )
+                        self._add_diagnostic(return_type_mismatch_error(
+                            f"{self.current_function_return_type} on all paths",
+                            "if without else branch",
+                            last_stmt_span
+                        ))
                     elif not types_compatible(self.current_function_return_type, last_stmt_type):
-                        self._error(
-                            f"Implicit return type mismatch: expected {self.current_function_return_type}, got {last_stmt_type}",
-                            1, 1
-                        )
+                        self._add_diagnostic(return_type_mismatch_error(
+                            str(self.current_function_return_type),
+                            str(last_stmt_type),
+                            last_stmt_span
+                        ))
                 elif isinstance(last_stmt, IfStmt):
                     # IfStmt directly in body - check exhaustiveness
                     if not last_stmt.else_body:
-                        self._error(
-                            f"Function '{fn.name}' must return {self.current_function_return_type} "
-                            "on all paths, but 'if' expression is missing 'else' branch",
-                            1, 1
-                        )
+                        self._add_diagnostic(return_type_mismatch_error(
+                            f"{self.current_function_return_type} on all paths",
+                            "if without else branch",
+                            last_stmt_span
+                        ))
                     elif not types_compatible(self.current_function_return_type, last_stmt_type):
-                        self._error(
-                            f"Implicit return type mismatch: expected {self.current_function_return_type}, got {last_stmt_type}",
-                            1, 1
-                        )
+                        self._add_diagnostic(return_type_mismatch_error(
+                            str(self.current_function_return_type),
+                            str(last_stmt_type),
+                            last_stmt_span
+                        ))
                 else:
                     # Last statement is not an expression (e.g., let statement)
-                    self._error(
-                        f"Function '{fn.name}' must return {self.current_function_return_type}, "
-                        "but last statement is not an expression",
-                        1, 1
-                    )
+                    self._add_diagnostic(return_type_mismatch_error(
+                        str(self.current_function_return_type),
+                        "non-expression statement",
+                        last_stmt_span
+                    ))
         
         # Generate warnings for unused variables and parameters
         for var_info in self.env.get_unused_vars():
@@ -505,12 +508,11 @@ class TypeChecker:
     
     def _get_expr_span(self, expr: Expr) -> Span:
         """Get span for an expression, falling back to DUMMY_SPAN if not available."""
-        # Try to get span from common expression types
-        if hasattr(expr, 'line') and hasattr(expr, 'column'):
-            return Span.single(expr.line, expr.column)
-        if isinstance(expr, Call) and hasattr(expr.callee, 'name'):
-            if hasattr(expr.callee, 'line'):
-                return Span.single(expr.callee.line, expr.callee.column)
+        # First try to get the span directly from the expression (new style)
+        span = getattr(expr, 'span', None)
+        if span is not None:
+            return span
+        # Legacy fallback for expressions without spans
         return DUMMY_SPAN
     
     def _check_let(self, stmt: LetStmt) -> None:
@@ -521,10 +523,10 @@ class TypeChecker:
         if stmt.type_annotation:
             expected_type = self._parse_type(stmt.type_annotation)
             if not types_compatible(expected_type, value_type):
-                self._error(
-                    f"Type mismatch: expected {expected_type}, got {value_type}",
-                    1, 1  # TODO: track actual line/column in AST
-                )
+                span = self._get_span(stmt)
+                self._add_diagnostic(type_mismatch_error(
+                    str(expected_type), str(value_type), span
+                ))
             # Use the annotated type for the variable
             self.env.define_var(stmt.name, expected_type, span=stmt.span, mutable=stmt.mutable)
         else:
@@ -712,10 +714,8 @@ class TypeChecker:
         
         # Condition should be Bool
         if cond_type not in (BOOL, ANY, UNKNOWN):
-            self._error(
-                f"Condition must be Bool, got {cond_type}",
-                1, 1
-            )
+            span = self._get_expr_span(stmt.condition)
+            self._add_diagnostic(condition_not_bool_error(str(cond_type), span))
         
         # Get type of last expression in then branch
         then_type = VOID
@@ -755,10 +755,11 @@ class TypeChecker:
         
         # Both branches must have compatible types
         if not types_compatible(then_type, else_type):
-            self._error(
-                f"Incompatible branch types: then has {then_type}, else has {else_type}",
-                1, 1
-            )
+            span = self._get_span(stmt)
+            self._add_diagnostic(type_mismatch_error(
+                f"then: {then_type}", f"else: {else_type}", span,
+                hint="both branches of an if expression must return compatible types"
+            ))
         
         # Return the more specific type
         if then_type == ANY:
@@ -786,7 +787,8 @@ class TypeChecker:
             
             typ = self.env.lookup_var(expr.name)
             if typ is None:
-                self._error(f"Undefined variable: {expr.name}", 1, 1)
+                span = self._get_expr_span(expr)
+                self._add_diagnostic(undefined_variable_error(expr.name, span))
                 return UNKNOWN
             # Mark variable as used for unused variable warnings
             self.env.mark_var_used(expr.name)
@@ -871,10 +873,8 @@ class TypeChecker:
                 return INT
             
             # Type error
-            self._error(
-                f"Cannot apply '{op}' to {left_type} and {right_type}",
-                1, 1
-            )
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(invalid_operation_error(op, str(left_type), str(right_type), span))
             return UNKNOWN
         
         # Comparison operators: == != < > <= >=
@@ -883,20 +883,20 @@ class TypeChecker:
             if op in ('==', '!='):
                 if left_type == right_type:
                     return BOOL
-                self._error(
-                    f"Cannot compare {left_type} with {right_type}",
-                    1, 1
-                )
+                span = self._get_expr_span(expr)
+                self._add_diagnostic(incompatible_comparison_error(
+                    str(left_type), str(right_type), op, span
+                ))
                 return BOOL
             
             # Ordering only for numeric types
             if left_type in (INT, FLOAT) and right_type in (INT, FLOAT):
                 return BOOL
             
-            self._error(
-                f"Cannot compare {left_type} with {right_type} using '{op}'",
-                1, 1
-            )
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(incompatible_comparison_error(
+                str(left_type), str(right_type), op, span
+            ))
             return BOOL
         
         return UNKNOWN
@@ -909,10 +909,8 @@ class TypeChecker:
         if op == '-':
             if operand_type in (INT, FLOAT, ANY):
                 return operand_type
-            self._error(
-                f"Cannot negate {operand_type}",
-                1, 1
-            )
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(invalid_operation_error(op, str(operand_type), "", span))
         
         return operand_type
     
@@ -942,10 +940,10 @@ class TypeChecker:
                 
                 # Check argument count (skip for varargs like print)
                 if param_types != [ANY] and len(expr.arguments) != len(param_types):
-                    self._error(
-                        f"Function {callee_name} expects {len(param_types)} arguments, got {len(expr.arguments)}",
-                        1, 1
-                    )
+                    span = self._get_expr_span(expr)
+                    self._add_diagnostic(wrong_arg_count_error(
+                        callee_name, len(param_types), len(expr.arguments), span
+                    ))
                 
                 # Check argument types
                 for arg in expr.arguments:
@@ -961,7 +959,8 @@ class TypeChecker:
                     self._check_expr(arg)
                 return ANY
             
-            self._error(f"Undefined function: {callee_name}", 1, 1)
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(undefined_function_error(callee_name, span))
             return UNKNOWN
         
         elif isinstance(expr.callee, FieldAccess):
@@ -991,16 +990,17 @@ class TypeChecker:
             return self._check_err_call(expr)
         else:
             # This shouldn't happen if is_type_constructor works correctly
-            self._error(f"Unknown type constructor: {name}", 1, 1)
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(undefined_function_error(name, span))
             return UNKNOWN
     
     def _check_some_call(self, expr: Call) -> OwlType:
         """Check Some(x) constructor - returns Option[type(x)]."""
         if len(expr.arguments) != 1:
-            self._error(
-                f"Some expects exactly 1 argument, got {len(expr.arguments)}",
-                1, 1
-            )
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(wrong_arg_count_error(
+                "Some", 1, len(expr.arguments), span
+            ))
             return OptionType(ANY)
         
         inner_type = self._check_expr(expr.arguments[0])
@@ -1009,10 +1009,10 @@ class TypeChecker:
     def _check_ok_call(self, expr: Call) -> OwlType:
         """Check Ok(x) constructor - returns Result[type(x), Any]."""
         if len(expr.arguments) != 1:
-            self._error(
-                f"Ok expects exactly 1 argument, got {len(expr.arguments)}",
-                1, 1
-            )
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(wrong_arg_count_error(
+                "Ok", 1, len(expr.arguments), span
+            ))
             return ResultType(ANY, ANY)
         
         ok_type = self._check_expr(expr.arguments[0])
@@ -1021,10 +1021,10 @@ class TypeChecker:
     def _check_err_call(self, expr: Call) -> OwlType:
         """Check Err(e) constructor - returns Result[Any, type(e)]."""
         if len(expr.arguments) != 1:
-            self._error(
-                f"Err expects exactly 1 argument, got {len(expr.arguments)}",
-                1, 1
-            )
+            span = self._get_expr_span(expr)
+            self._add_diagnostic(wrong_arg_count_error(
+                "Err", 1, len(expr.arguments), span
+            ))
             return ResultType(ANY, ANY)
         
         err_type = self._check_expr(expr.arguments[0])
@@ -1242,7 +1242,7 @@ class TypeChecker:
         span = getattr(node, 'span', None)
         if span is not None:
             return span
-        return Span.single(1, 1, 1, self.filename)
+        return DUMMY_SPAN
     
     def _error(self, message: str, line: int, column: int) -> None:
         """Record a type error (legacy method for backward compatibility)."""

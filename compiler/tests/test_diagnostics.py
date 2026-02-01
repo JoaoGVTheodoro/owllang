@@ -394,3 +394,136 @@ class TestIntegrationWithTypeChecker:
         
         checker = TypeChecker(filename="example.ow")
         assert checker.filename == "example.ow"
+
+# =============================================================================
+# SPAN REGRESSION TESTS (v0.2.4.6)
+# =============================================================================
+
+class TestSpanPropagation:
+    """Test that spans are correctly propagated from parser to diagnostics."""
+    
+    def test_parser_propagates_literal_spans(self) -> None:
+        """Parser should add spans to literal AST nodes."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.ast import IntLiteral, StringLiteral
+        
+        source = "42"
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        # The 42 should have a span
+        expr_stmt = program.statements[0]
+        assert hasattr(expr_stmt, 'expr')
+        literal = expr_stmt.expr
+        assert isinstance(literal, IntLiteral)
+        assert literal.span is not None
+        assert literal.span.start.line == 1
+        assert literal.span.start.column == 1
+    
+    def test_parser_propagates_identifier_spans(self) -> None:
+        """Parser should add spans to identifier AST nodes."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.ast import Identifier
+        
+        source = "my_var"
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        expr_stmt = program.statements[0]
+        ident = expr_stmt.expr
+        assert isinstance(ident, Identifier)
+        assert ident.span is not None
+        assert ident.span.start.line == 1
+        assert ident.span.start.column == 1
+    
+    def test_parser_propagates_binary_op_spans(self) -> None:
+        """Binary operations should span from left to right operand."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.ast import BinaryOp
+        
+        source = "1 + 2"
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        expr_stmt = program.statements[0]
+        binop = expr_stmt.expr
+        assert isinstance(binop, BinaryOp)
+        assert binop.span is not None
+        assert binop.span.start.column == 1  # starts at '1'
+        assert binop.span.end.column == 5    # ends at '2'
+    
+    def test_parser_propagates_call_spans(self) -> None:
+        """Function calls should have spans."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.ast import Call
+        
+        source = "foo(x)"
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        expr_stmt = program.statements[0]
+        call = expr_stmt.expr
+        assert isinstance(call, Call)
+        assert call.span is not None
+        assert call.span.start.column == 1
+    
+    def test_diagnostic_uses_expression_span(self) -> None:
+        """Diagnostics should use spans from AST nodes."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.typechecker import TypeChecker
+        
+        source = "undefined_var"
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        checker = TypeChecker(filename="test.ow")
+        checker.check(program)
+        
+        # Should have an undefined variable error
+        assert len(checker.diagnostics) == 1
+        diag = checker.diagnostics[0]
+        # The span should point to line 1, not a dummy span
+        assert diag.span.start.line == 1
+        assert diag.span.start.column == 1
+    
+    def test_diagnostic_span_on_line_2(self) -> None:
+        """Diagnostics should correctly identify errors on later lines."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.typechecker import TypeChecker
+        
+        source = """let x = 1
+undefined_var"""
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        checker = TypeChecker(filename="test.ow")
+        checker.check(program)
+        
+        # Find the undefined variable error
+        undefined_diag = [d for d in checker.diagnostics if "undefined" in d.message.lower()]
+        assert len(undefined_diag) == 1
+        diag = undefined_diag[0]
+        # Should point to line 2
+        assert diag.span.start.line == 2, f"Expected line 2, got {diag.span.start.line}"
+    
+    def test_let_statement_has_span(self) -> None:
+        """Let statements should have spans."""
+        from owllang.lexer import tokenize
+        from owllang.parser import parse
+        from owllang.ast import LetStmt
+        
+        source = "let x = 42"
+        tokens = tokenize(source)
+        program = parse(tokens, filename="test.ow")
+        
+        stmt = program.statements[0]
+        assert isinstance(stmt, LetStmt)
+        assert stmt.span is not None
+        assert stmt.span.start.line == 1
+        assert stmt.span.start.column == 1

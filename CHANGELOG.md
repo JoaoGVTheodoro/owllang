@@ -5,6 +5,65 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.6-alpha] - 2026-02-02
+
+### Diagnostic Precision & Type Boundary Tightening
+
+This release **must not introduce any new syntax or language features**.
+Its purpose is to eliminate technical debt before implementing Structs.
+
+### Fixed
+- **Parser Span Propagation** (CRITICAL): All AST nodes now receive source spans
+  - Literals (Int, Float, String, Bool) have spans
+  - Identifiers have spans
+  - Binary and unary operations span from left to right operand
+  - Function calls span from callee to closing parenthesis
+  - All statements (let, assign, if, while, for, loop, return, break, continue)
+  - Function declarations have spans
+
+- **Type Checker Spans** (CRITICAL): Eliminated all hardcoded `1, 1` fallbacks
+  - All error factory functions now receive proper spans from AST nodes
+  - `_get_expr_span()` and `_get_span()` extract spans from nodes
+  - DUMMY_SPAN used only as last-resort fallback
+
+### Added
+- **Type System Escape Hatches Documentation** (INVARIANTS.md Section 7)
+  - `Any` type is an escape hatch, not a top type
+  - `Any` behavior: compatible with all types, propagates through operations
+  - `Any` boundaries: allowed for Python interop, not user-annotatable
+  - `Unknown` type: internal sentinel for inference failure
+
+- **Span Regression Tests** (`test_diagnostics.py::TestSpanPropagation`)
+  - 7 new tests verifying span propagation from parser to diagnostics
+  - Tests for literals, identifiers, binary ops, calls, diagnostics
+
+### Changed
+- **INVARIANTS.md**: 
+  - Section 6 updated: Span tracking now implemented (was aspirational)
+  - Section 7 added: Type System Escape Hatches (Any, Unknown)
+  - Future Work updated: span tracking marked complete
+  - Section numbers adjusted (now 11 sections total)
+
+- **Parser API**: `parse()` and `Parser()` now accept optional `filename` parameter
+  - Default: `"<unknown>"`
+  - Used for span filename tracking
+
+- **Error Messages**: Now use modern diagnostic format
+  - Lowercase message style (e.g., "cannot apply" instead of "Cannot apply")
+  - Structured messages with hints and notes
+
+### Technical
+- 634 tests passing (7 new span regression tests)
+- Zero hardcoded `1, 1` in type checker (was 20+)
+- All AST nodes created with spans
+
+### Design Notes
+- This release tightens diagnostic precision without changing semantics
+- "If Structs were added tomorrow, no span-related bugs would amplify"
+- No new language features, syntax, or behavior changes
+
+---
+
 ## [0.2.4.5-alpha] - 2026-02-01
 
 ### Stabilization Before Structs

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "owllang"
-version = "0.1.0-alpha"
+version = "0.2.4.6-alpha"
 description = "A modern programming language that transpiles to Python"
 readme = "README.md"
 license = "MIT"
