@@ -184,6 +184,7 @@ If you believe a stability guarantee has been violated:
 
 | Version        | Stability Changes                   |
 | -------------- | ----------------------------------- |
+| v0.2.4.2-alpha | Documentation fixes, code audit     |
 | v0.2.4.1-alpha | Added INVARIANTS.md, updated v0.2.x |
 | v0.1.6-alpha   | Initial stability contract          |
 | v0.1.5-alpha   | CLI exit codes finalized            |
@@ -192,4 +193,4 @@ If you believe a stability guarantee has been violated:
 
 ---
 
-*This document is part of the OwlLang v0.2.4.1-alpha release.*
+*This document is part of the OwlLang v0.2.4.2-alpha release.*

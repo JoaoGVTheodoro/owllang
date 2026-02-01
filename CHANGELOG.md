@@ -5,6 +5,29 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4.2-alpha] - 2026-01-31
+
+### Semantic Tightening & Transpiler Simplification
+
+This release focuses on **internal consistency and code hygiene**, not new features.
+It audits the codebase for dead code, redundancies, and documentation errors.
+
+### Fixed
+- **CHANGELOG documentation**: `range(a, b)` correctly documented as transpiling to `range(a, b)` 
+  (was incorrectly documented as `list(range(a, b))`)
+
+### Technical
+- 566 tests passing
+- Code audit: no dead code found in transpiler or typechecker
+- Dual error system (`_error` + `_add_diagnostic`) documented as required for backward compatibility
+- `TypeError` dataclass is legacy but required by test suite
+
+### Design Notes
+- This release validates the v0.2.x architecture is clean and well-documented
+- Ready for v0.2.5-alpha (Structs) development
+
+---
+
 ## [0.2.4.1-alpha] - 2026-01-31
 
 ### Conceptual Consolidation Release
@@ -68,7 +91,7 @@ This release establishes the conceptual foundation for v0.2.5 (Structs):
 ### Technical
 - 563 tests passing (17 new tests for loop and range)
 - `loop { }` transpiles to `while True:` in Python
-- `range(a, b)` transpiles to `list(range(a, b))` in Python
+- `range(a, b)` transpiles to `range(a, b)` in Python (lazy, supports indexing and iteration)
 - `continue` works in `loop` as expected
 
 ### Design Notes

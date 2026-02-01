@@ -3,19 +3,19 @@
 > A modern, statically-typed language that transpiles to Python
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/owl-lang/owl)
-[![Version](https://img.shields.io/badge/version-0.2.4.1--alpha-blue.svg)](https://github.com/owl-lang/owl)
+[![Version](https://img.shields.io/badge/version-0.2.4.2--alpha-blue.svg)](https://github.com/owl-lang/owl)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-563%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
+[![Tests](https://img.shields.io/badge/tests-566%20passing-brightgreen.svg)](https://github.com/owl-lang/owl)
 
 **OwlLang** is an experimental programming language with a strong type system, first-class error handling via `Option` and `Result` types, and seamless Python interoperability. It transpiles to clean, readable Python code.
 
 ## ⚠️ Status: Alpha / Experimental
 
-This is **v0.2.4.1-alpha** — a consolidation release:
+This is **v0.2.4.2-alpha** — a semantic tightening release:
 - Complete iteration model: `while`, `for-in`, `loop`, `range`
 - Lists with `len`, `get`, `push`, `is_empty`
 - Local mutability with `let mut`
-- Conceptual simplification pass
+- Internal code audit and documentation fixes
 - Not recommended for production use yet
 
 See [STABILITY.md](docs/STABILITY.md) for stability guarantees.
