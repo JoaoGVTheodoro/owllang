@@ -126,6 +126,36 @@ class ResultType(OwlType):
         return hash(("Result", self.ok_type, self.err_type))
 
 
+@dataclass(frozen=True)
+class ListType(OwlType):
+    """
+    List[T] type - represents a list of values of type T.
+    
+    - [1, 2, 3] -> List[Int]
+    - ["a", "b"] -> List[String]
+    - [] -> List[Any] (empty list, type determined by context)
+    """
+    element_type: OwlType
+    
+    def __init__(self, element_type: OwlType) -> None:
+        object.__setattr__(self, 'name', f"List[{element_type}]")
+        object.__setattr__(self, 'element_type', element_type)
+    
+    def __str__(self) -> str:
+        return f"List[{self.element_type}]"
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, ListType):
+            # List[Any] is compatible with any List[T]
+            if self.element_type == ANY or other.element_type == ANY:
+                return True
+            return self.element_type == other.element_type
+        return False
+    
+    def __hash__(self) -> int:
+        return hash(("List", self.element_type))
+
+
 # =============================================================================
 # Type Utilities
 # =============================================================================
@@ -159,6 +189,12 @@ def parse_type(type_str: str) -> OwlType:
         inner_str = type_str[7:-1]  # Extract T from Option[T]
         inner_type = parse_type(inner_str)
         return OptionType(inner_type)
+    
+    # List[T]
+    if type_str.startswith("List[") and type_str.endswith("]"):
+        inner_str = type_str[5:-1]  # Extract T from List[T]
+        inner_type = parse_type(inner_str)
+        return ListType(inner_type)
     
     # Result[T, E]
     if type_str.startswith("Result[") and type_str.endswith("]"):
@@ -196,6 +232,7 @@ def types_compatible(expected: OwlType, actual: OwlType) -> bool:
     - UNKNOWN is compatible with anything (unresolved)
     - Option[T] == Option[T] or Option[Any]
     - Result[T, E] == Result[T, E] with ANY matching anything
+    - List[T] == List[T] or List[Any]
     - Primitive types must match exactly
     """
     # ANY and UNKNOWN are wildcards
@@ -210,6 +247,10 @@ def types_compatible(expected: OwlType, actual: OwlType) -> bool:
     
     # Both Result types
     if isinstance(expected, ResultType) and isinstance(actual, ResultType):
+        return expected == actual  # __eq__ handles ANY
+    
+    # Both List types
+    if isinstance(expected, ListType) and isinstance(actual, ListType):
         return expected == actual  # __eq__ handles ANY
     
     # Same type class

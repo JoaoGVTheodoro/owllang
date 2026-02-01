@@ -46,6 +46,8 @@ class TokenType(Enum):
     WHILE = auto()  # while
     BREAK = auto()  # break
     CONTINUE = auto()  # continue
+    FOR = auto()  # for
+    IN = auto()  # in
     FROM = auto()
     PYTHON = auto()
     IMPORT = auto()
@@ -212,6 +214,18 @@ class TryExpr(Expr):
 
 
 @dataclass
+class ListLiteral(Expr):
+    """
+    List literal: [1, 2, 3]
+    
+    Represents a list of values of the same type.
+    """
+
+    elements: list[Expr]
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
 class Pattern:
     """Base class for match patterns."""
     pass
@@ -366,6 +380,16 @@ class BreakStmt(Stmt):
 class ContinueStmt(Stmt):
     """Continue statement: continue"""
 
+    span: Optional[Span] = field(default=None, compare=False)
+
+
+@dataclass
+class ForInStmt(Stmt):
+    """For-in loop: for item in collection { body }"""
+
+    item_name: str
+    collection: Expr
+    body: list[Stmt]
     span: Optional[Span] = field(default=None, compare=False)
 
 

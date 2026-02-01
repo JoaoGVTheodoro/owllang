@@ -11,14 +11,14 @@ from ..ast import (
     Token, TokenType,
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
-    Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr, ListLiteral,
     # Pattern Matching
     Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     MatchArm, MatchExpr,
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -40,6 +40,7 @@ SYNC_TOKENS = frozenset({
     TokenType.RETURN,
     TokenType.IF,
     TokenType.WHILE,
+    TokenType.FOR,
     TokenType.BREAK,
     TokenType.CONTINUE,
     TokenType.FROM,
@@ -317,6 +318,8 @@ class Parser:
             return self._parse_if_stmt()
         elif self._check(TokenType.WHILE):
             return self._parse_while_stmt()
+        elif self._check(TokenType.FOR):
+            return self._parse_for_in_stmt()
         elif self._check(TokenType.BREAK):
             return self._parse_break_stmt()
         elif self._check(TokenType.CONTINUE):
@@ -370,6 +373,15 @@ class Parser:
         token = self._expect(TokenType.CONTINUE, "Expected 'continue'")
         span = token.span("<unknown>")
         return ContinueStmt(span=span)
+    
+    def _parse_for_in_stmt(self) -> ForInStmt:
+        """Parse: for item in collection { body }"""
+        self._expect(TokenType.FOR, "Expected 'for'")
+        item_token = self._expect(TokenType.IDENT, "Expected loop variable name")
+        self._expect(TokenType.IN, "Expected 'in' after loop variable")
+        collection = self._parse_expr()
+        body = self._parse_block()
+        return ForInStmt(item_token.value, collection, body)
     
     def _parse_return_stmt(self) -> ReturnStmt:
         """Parse: return [expr]"""
@@ -495,7 +507,7 @@ class Parser:
         return args
     
     def _parse_primary(self) -> Expr:
-        """Parse primary expression (literals, identifiers, grouped, match)."""
+        """Parse primary expression (literals, identifiers, grouped, match, list)."""
         # Integer
         if token := self._match(TokenType.INT):
             return IntLiteral(int(token.value))
@@ -518,6 +530,10 @@ class Parser:
         if match_token := self._match(TokenType.MATCH):
             return self._parse_match_expr(match_token)
         
+        # List literal: [1, 2, 3]
+        if self._match(TokenType.LBRACKET):
+            return self._parse_list_literal()
+        
         # Identifier
         if token := self._match(TokenType.IDENT):
             return Identifier(token.value)
@@ -529,6 +545,28 @@ class Parser:
             return expr
         
         raise ParseError(f"Unexpected token: {self._peek().value!r}", self._peek())
+    
+    def _parse_list_literal(self) -> ListLiteral:
+        """Parse list literal: [elem1, elem2, ...]"""
+        elements: list[Expr] = []
+        
+        # Empty list
+        if self._check(TokenType.RBRACKET):
+            self._advance()
+            return ListLiteral(elements)
+        
+        # Parse first element
+        elements.append(self._parse_expr())
+        
+        # Parse remaining elements
+        while self._match(TokenType.COMMA):
+            # Allow trailing comma
+            if self._check(TokenType.RBRACKET):
+                break
+            elements.append(self._parse_expr())
+        
+        self._expect(TokenType.RBRACKET, "Expected ']' after list elements")
+        return ListLiteral(elements)
     
     def _parse_match_expr(self, match_token: Token) -> MatchExpr:
         """

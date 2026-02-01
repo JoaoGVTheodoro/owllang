@@ -17,20 +17,20 @@ from typing import TYPE_CHECKING
 from ..ast import (
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
-    Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr, ListLiteral,
     # Pattern Matching
     MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Type Annotations
     TypeAnnotation,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, IfStmt,
     # Declarations
     Parameter, FnDecl, PythonImport, PythonFromImport, Program
 )
 
 from .types import (
     OwlType, INT, FLOAT, STRING, BOOL, VOID, UNKNOWN, ANY,
-    OptionType, ResultType,
+    OptionType, ResultType, ListType,
     parse_type, types_compatible,
 )
 
@@ -44,6 +44,7 @@ from ..diagnostics import (
     match_not_exhaustive_error, match_invalid_pattern_error,
     assignment_to_immutable_error,
     break_outside_loop_error, continue_outside_loop_error,
+    for_in_not_list_error,
     # Warnings
     Warning,
     unused_variable_warning, unused_parameter_warning,
@@ -203,6 +204,13 @@ class TypeChecker:
         """Register built-in functions."""
         # print accepts any type
         self.env.define_fn("print", [ANY], VOID)
+        
+        # List built-in functions (handled specially in _check_call)
+        # len(list) -> Int
+        self.env.define_fn("len", [ListType(ANY)], INT)
+        # is_empty(list) -> Bool
+        self.env.define_fn("is_empty", [ListType(ANY)], BOOL)
+        # get and push are handled specially because of generic return types
     
     def _add_warning(self, warning: Warning) -> None:
         """Add a warning to the warning list, avoiding duplicates."""
@@ -321,6 +329,15 @@ class TypeChecker:
             ok_type = self._parse_type(params[0])
             err_type = self._parse_type(params[1])
             return ResultType(ok_type, err_type)
+        
+        # List[T] - requires exactly 1 parameter
+        if name == "List":
+            if len(params) != 1:
+                span = type_ann.span if type_ann.span else DUMMY_SPAN
+                self._add_diagnostic(wrong_type_arity_error("List", 1, len(params), span))
+                return UNKNOWN
+            element_type = self._parse_type(params[0])
+            return ListType(element_type)
         
         # Unknown type
         span = type_ann.span if type_ann.span else DUMMY_SPAN
@@ -493,6 +510,8 @@ class TypeChecker:
             self._check_return(stmt)
         elif isinstance(stmt, WhileStmt):
             self._check_while(stmt)
+        elif isinstance(stmt, ForInStmt):
+            self._check_for_in(stmt)
         elif isinstance(stmt, BreakStmt):
             self._check_break(stmt)
         elif isinstance(stmt, ContinueStmt):
@@ -580,6 +599,43 @@ class TypeChecker:
                 self._check_stmt(s)
         finally:
             self._loop_depth -= 1
+    
+    def _check_for_in(self, stmt: ForInStmt) -> None:
+        """Check for-in statement: for item in collection { body }"""
+        # Check collection type
+        collection_type = self._check_expr(stmt.collection)
+        
+        # Collection must be List[T]
+        if isinstance(collection_type, ListType):
+            element_type = collection_type.element_type
+        elif collection_type == ANY:
+            element_type = ANY
+        else:
+            span = self._get_span(stmt.collection)
+            self._add_diagnostic(for_in_not_list_error(str(collection_type), span))
+            element_type = UNKNOWN
+        
+        # Create new scope for loop body with item variable
+        loop_env = self.env.child_scope()
+        old_env = self.env
+        self.env = loop_env
+        
+        try:
+            # Define loop variable (immutable)
+            self.env.define_var(stmt.item_name, element_type, span=stmt.span, mutable=False)
+            
+            # Check body (inside loop context)
+            self._loop_depth += 1
+            try:
+                for s in stmt.body:
+                    self._check_stmt(s)
+            finally:
+                self._loop_depth -= 1
+            
+            # Note: We don't warn about unused loop variable (common pattern)
+            self.env.mark_var_used(stmt.item_name)
+        finally:
+            self.env = old_env
     
     def _check_break(self, stmt: BreakStmt) -> None:
         """Check break statement - must be inside a loop."""
@@ -747,11 +803,40 @@ class TypeChecker:
         elif isinstance(expr, MatchExpr):
             return self._check_match_expr(expr)
         
+        elif isinstance(expr, ListLiteral):
+            return self._check_list_literal(expr)
+        
         elif isinstance(expr, IfStmt):
             # If used as expression
             return self._check_if_expr(expr)
         
         return UNKNOWN
+    
+    def _check_list_literal(self, expr: ListLiteral) -> OwlType:
+        """Check list literal and return its type."""
+        if not expr.elements:
+            # Empty list - type will be determined by context
+            return ListType(ANY)
+        
+        # Check all elements and determine common type
+        element_types: list[OwlType] = []
+        for elem in expr.elements:
+            elem_type = self._check_expr(elem)
+            element_types.append(elem_type)
+        
+        # All elements must have the same type
+        first_type = element_types[0]
+        for i, elem_type in enumerate(element_types[1:], start=1):
+            if not types_compatible(first_type, elem_type):
+                span = self._get_span(expr)
+                self._add_diagnostic(type_mismatch_error(
+                    str(first_type),
+                    str(elem_type),
+                    span
+                ))
+                return ListType(UNKNOWN)
+        
+        return ListType(first_type)
     
     def _check_binary_op(self, expr: BinaryOp) -> OwlType:
         """Check binary operation and return result type."""
@@ -836,6 +921,12 @@ class TypeChecker:
             elif callee_name == "Err":
                 return self._check_err_call(expr)
             
+            # Special list functions with generic return types
+            elif callee_name == "get":
+                return self._check_get_call(expr)
+            elif callee_name == "push":
+                return self._check_push_call(expr)
+            
             fn_info = self.env.lookup_fn(callee_name)
             if fn_info:
                 param_types, return_type = fn_info
@@ -912,6 +1003,59 @@ class TypeChecker:
         
         err_type = self._check_expr(expr.arguments[0])
         return ResultType(ANY, err_type)
+    
+    def _check_get_call(self, expr: Call) -> OwlType:
+        """Check get(list, index) - returns the element type T from List[T]."""
+        if len(expr.arguments) != 2:
+            span = self._get_span(expr)
+            self._add_diagnostic(wrong_arg_count_error("get", 2, len(expr.arguments), span))
+            return UNKNOWN
+        
+        list_type = self._check_expr(expr.arguments[0])
+        index_type = self._check_expr(expr.arguments[1])
+        
+        # Check that second argument is Int
+        if index_type not in (INT, ANY, UNKNOWN):
+            span = self._get_span(expr.arguments[1])
+            self._add_diagnostic(type_mismatch_error("Int", str(index_type), span))
+        
+        # Get element type from List[T]
+        if isinstance(list_type, ListType):
+            return list_type.element_type
+        elif list_type == ANY:
+            return ANY
+        else:
+            span = self._get_span(expr.arguments[0])
+            self._add_diagnostic(type_mismatch_error("List[T]", str(list_type), span))
+            return UNKNOWN
+    
+    def _check_push_call(self, expr: Call) -> OwlType:
+        """Check push(list, value) - returns List[T] with same element type."""
+        if len(expr.arguments) != 2:
+            span = self._get_span(expr)
+            self._add_diagnostic(wrong_arg_count_error("push", 2, len(expr.arguments), span))
+            return ListType(UNKNOWN)
+        
+        list_type = self._check_expr(expr.arguments[0])
+        value_type = self._check_expr(expr.arguments[1])
+        
+        # Get element type from List[T]
+        if isinstance(list_type, ListType):
+            # Check that value type matches element type
+            if not types_compatible(list_type.element_type, value_type):
+                span = self._get_span(expr.arguments[1])
+                self._add_diagnostic(type_mismatch_error(
+                    str(list_type.element_type),
+                    str(value_type),
+                    span
+                ))
+            return list_type
+        elif list_type == ANY:
+            return ListType(value_type)
+        else:
+            span = self._get_span(expr.arguments[0])
+            self._add_diagnostic(type_mismatch_error("List[T]", str(list_type), span))
+            return ListType(UNKNOWN)
     
     def _check_try_expr(self, expr: TryExpr) -> OwlType:
         """

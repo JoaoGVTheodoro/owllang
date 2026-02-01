@@ -10,10 +10,11 @@ from ..ast import (
     # Expressions
     Expr, IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
     Identifier, BinaryOp, UnaryOp, Call, FieldAccess, TryExpr,
+    ListLiteral,
     # Pattern Matching
     MatchExpr, MatchArm, Pattern, SomePattern, NonePattern, OkPattern, ErrPattern,
     # Statements
-    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, IfStmt,
+    Stmt, LetStmt, AssignStmt, ExprStmt, ReturnStmt, WhileStmt, BreakStmt, ContinueStmt, ForInStmt, IfStmt,
     # Declarations
     FnDecl, PythonImport, PythonFromImport, Program
 )
@@ -281,6 +282,8 @@ class Transpiler:
             return self._transpile_return(stmt)
         elif isinstance(stmt, WhileStmt):
             return self._transpile_while(stmt)
+        elif isinstance(stmt, ForInStmt):
+            return self._transpile_for_in(stmt)
         elif isinstance(stmt, BreakStmt):
             return self._transpile_break(stmt)
         elif isinstance(stmt, ContinueStmt):
@@ -331,6 +334,22 @@ class Transpiler:
     def _transpile_continue(self, stmt: ContinueStmt) -> str:
         """Transpile: continue → continue"""
         return self._indent("continue")
+    
+    def _transpile_for_in(self, stmt: ForInStmt) -> str:
+        """Transpile: for item in collection { body } → for item in collection: body"""
+        lines: list[str] = []
+        collection = self._transpile_expr(stmt.collection)
+        lines.append(self._indent(f"for {stmt.item_name} in {collection}:"))
+        
+        self.indent_level += 1
+        if stmt.body:
+            for s in stmt.body:
+                lines.append(self._transpile_stmt(s))
+        else:
+            lines.append(self._indent("pass"))
+        self.indent_level -= 1
+        
+        return "\n".join(lines)
     
     def _transpile_let_with_try(self, var_name: str, try_expr: TryExpr) -> str:
         """
@@ -479,6 +498,29 @@ class Transpiler:
             return f"({expr.operator}{operand})"
         
         elif isinstance(expr, Call):
+            # Handle special built-in functions for List[T]
+            if isinstance(expr.callee, Identifier):
+                callee_name = expr.callee.name
+                
+                if callee_name == "get":
+                    # get(list, index) -> list[index]
+                    list_arg = self._transpile_expr(expr.arguments[0])
+                    index_arg = self._transpile_expr(expr.arguments[1])
+                    return f"{list_arg}[{index_arg}]"
+                
+                elif callee_name == "push":
+                    # push(list, value) -> list + [value] (immutable, returns new list)
+                    list_arg = self._transpile_expr(expr.arguments[0])
+                    value_arg = self._transpile_expr(expr.arguments[1])
+                    return f"({list_arg} + [{value_arg}])"
+                
+                elif callee_name == "is_empty":
+                    # is_empty(list) -> len(list) == 0
+                    list_arg = self._transpile_expr(expr.arguments[0])
+                    return f"(len({list_arg}) == 0)"
+                
+                # len maps directly to Python's len
+            
             callee = self._transpile_expr(expr.callee)
             args = ", ".join(self._transpile_expr(arg) for arg in expr.arguments)
             return f"{callee}({args})"
@@ -500,6 +542,10 @@ class Transpiler:
         
         elif isinstance(expr, MatchExpr):
             return self._transpile_match_expr(expr)
+        
+        elif isinstance(expr, ListLiteral):
+            elements = ", ".join(self._transpile_expr(e) for e in expr.elements)
+            return f"[{elements}]"
         
         else:
             raise ValueError(f"Unknown expression type: {type(expr)}")

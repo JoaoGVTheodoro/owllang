@@ -5,6 +5,93 @@ All notable changes to OwlLang will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3-alpha] - 2026-01-31
+
+### Added
+- **`for-in` loop**: Ergonomic iteration over lists
+  ```owl
+  for item in [1, 2, 3] {
+      print(item)
+  }
+  ```
+- **Syntactic sugar**: `for-in` is equivalent to index-based `while` loops but more readable
+  ```owl
+  // Before (v0.2.2)
+  let mut i = 0
+  while i < len(xs) {
+      let x = get(xs, i)
+      print(x)
+      i = i + 1
+  }
+  
+  // After (v0.2.3)
+  for x in xs {
+      print(x)
+  }
+  ```
+- **Loop variable scoping**: `item` is scoped to the loop body and is immutable
+- **Error E0507**: "`cannot iterate over type X`" when collection is not `List[T]`
+
+### Technical
+- 546 tests passing (19 new tests for for-in loops)
+- `break` and `continue` work in for-in loops
+- `return` works in for-in loops
+- Transpiles directly to Python `for item in collection:` (no explicit indices)
+
+### Design Notes
+- `for-in` is a **statement** (like `while`), not an expression
+- Loop variable is always **immutable** (cannot be reassigned inside loop)
+- Semantics unchanged from v0.2.2 - just improved ergonomics
+
+---
+
+## [0.2.2-alpha] - 2026-01-31
+
+### Added
+- **`List[T]` type**: Typed lists for storing multiple values
+  ```owl
+  let xs: List[Int] = [1, 2, 3]
+  let names = ["Alice", "Bob"]  // inferred as List[String]
+  ```
+- **List literals**: `[element1, element2, ...]` with trailing comma support
+  ```owl
+  let empty = []
+  let nums = [1, 2, 3,]  // trailing comma allowed
+  ```
+- **Built-in function `len(list) -> Int`**: Returns the number of elements
+  ```owl
+  print(len([1, 2, 3]))  // 3
+  ```
+- **Built-in function `get(list, index) -> T`**: Returns element at index
+  ```owl
+  let xs = [10, 20, 30]
+  print(get(xs, 1))  // 20
+  ```
+- **Built-in function `push(list, value) -> List[T]`**: Returns new list with value appended
+  ```owl
+  let xs = [1, 2]
+  let ys = push(xs, 3)  // [1, 2, 3]
+  // xs is still [1, 2] (immutable)
+  ```
+- **Built-in function `is_empty(list) -> Bool`**: Returns true if list is empty
+  ```owl
+  if is_empty([]) { print("empty") }
+  ```
+
+### Technical
+- 527 tests passing (30 new tests for List[T])
+- Lists are **immutable** - `push` returns a new list
+- Type checking ensures **homogeneous** lists (all elements same type)
+- Integration with `while` loops enables classic algorithms (sum, find, etc.)
+- Transpiles directly to Python lists
+
+### Design Notes
+- `List[T]` enables practical programming with loops from v0.2.0/v0.2.1
+- Lists use functional style: operations return new lists
+- Empty list `[]` has type `List[Any]`, allowing assignment to any typed list
+
+---
+
 ## [0.2.1-alpha] - 2026-01-31
 
 ### Added

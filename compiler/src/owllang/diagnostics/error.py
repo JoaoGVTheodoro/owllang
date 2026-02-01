@@ -278,7 +278,7 @@ def unknown_type_error(type_name: str, span: Span) -> DiagnosticError:
         code=ErrorCode.UNKNOWN_TYPE.value,
         message=f"unknown type `{type_name}`",
         span=span,
-    ).with_hint("valid types are: Int, Float, String, Bool, Void, Option[T], Result[T, E]")
+    ).with_hint("valid types are: Int, Float, String, Bool, Void, Option[T], Result[T, E], List[T]")
 
 
 def assignment_to_immutable_error(name: str, span: Span) -> DiagnosticError:
@@ -296,7 +296,7 @@ def break_outside_loop_error(span: Span) -> DiagnosticError:
         code=ErrorCode.BREAK_OUTSIDE_LOOP.value,
         message="`break` outside of loop",
         span=span,
-    ).with_hint("`break` can only be used inside `while` loops")
+    ).with_hint("`break` can only be used inside `while` or `for` loops")
 
 
 def continue_outside_loop_error(span: Span) -> DiagnosticError:
@@ -305,4 +305,13 @@ def continue_outside_loop_error(span: Span) -> DiagnosticError:
         code=ErrorCode.CONTINUE_OUTSIDE_LOOP.value,
         message="`continue` outside of loop",
         span=span,
-    ).with_hint("`continue` can only be used inside `while` loops")
+    ).with_hint("`continue` can only be used inside `while` or `for` loops")
+
+
+def for_in_not_list_error(actual_type: str, span: Span) -> DiagnosticError:
+    """Create an error for for-in with non-list type."""
+    return DiagnosticError(
+        code=ErrorCode.FOR_IN_NOT_LIST.value,
+        message=f"cannot iterate over type `{actual_type}`",
+        span=span,
+    ).with_hint("`for` loop requires a `List[T]` to iterate over")

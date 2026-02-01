@@ -1,0 +1,174 @@
+// Example 12: For-In Loops in OwlLang
+// OwlLang v0.2.3-alpha - Ergonomic list iteration
+
+// ========================================
+// 1. Basic For-In Loop
+// ========================================
+
+fn demo_basic() {
+    print("=== Basic Iteration ===")
+    
+    // Iterate over inline list
+    for x in [1, 2, 3] {
+        print(x)
+    }
+    
+    // Iterate over variable
+    let names = ["Alice", "Bob", "Charlie"]
+    for name in names {
+        print(name)
+    }
+}
+
+// ========================================
+// 2. Sum with For-In (vs While)
+// ========================================
+
+fn sum_with_for(xs: List[Int]) -> Int {
+    let mut total = 0
+    for x in xs {
+        total = total + x
+    }
+    total
+}
+
+fn sum_with_while(xs: List[Int]) -> Int {
+    let mut total = 0
+    let mut i = 0
+    while i < len(xs) {
+        total = total + get(xs, i)
+        i = i + 1
+    }
+    total
+}
+
+fn demo_sum() {
+    print("=== Sum Comparison ===")
+    let numbers = [1, 2, 3, 4, 5]
+    
+    print("Sum with for-in:")
+    print(sum_with_for(numbers))
+    
+    print("Sum with while:")
+    print(sum_with_while(numbers))
+}
+
+// ========================================
+// 3. Finding Elements
+// ========================================
+
+fn find_first(xs: List[Int], target: Int) -> Int {
+    let mut idx = 0
+    for x in xs {
+        if x == target {
+            return idx
+        }
+        idx = idx + 1
+    }
+    return -1
+}
+
+fn demo_find() {
+    print("=== Finding Elements ===")
+    let data = [10, 20, 30, 40, 50]
+    
+    let idx = find_first(data, 30)
+    print("Index of 30:")
+    print(idx)
+    
+    let not_found = find_first(data, 99)
+    print("Index of 99 (not found):")
+    print(not_found)
+}
+
+// ========================================
+// 4. Using Break and Continue
+// ========================================
+
+fn demo_break() {
+    print("=== Break in For-In ===")
+    for x in [1, 2, 3, 4, 5] {
+        if x == 3 {
+            print("Breaking at 3")
+            break
+        }
+        print(x)
+    }
+}
+
+fn demo_continue() {
+    print("=== Continue in For-In ===")
+    for x in [1, 2, 3, 4, 5] {
+        if x == 3 {
+            continue  // Skip 3
+        }
+        print(x)
+    }
+}
+
+// ========================================
+// 5. Filtering and Collecting
+// ========================================
+
+fn filter_positive(xs: List[Int]) -> List[Int] {
+    let mut result = []
+    for x in xs {
+        if x > 0 {
+            result = push(result, x)
+        }
+    }
+    result
+}
+
+fn demo_filter() {
+    print("=== Filtering ===")
+    let mixed = [-2, 3, -1, 5, 0, 7]
+    let positive = filter_positive(mixed)
+    
+    print("Positive numbers:")
+    for x in positive {
+        print(x)
+    }
+}
+
+// ========================================
+// 6. Nested Loops
+// ========================================
+
+fn demo_nested() {
+    print("=== Nested For-In ===")
+    let rows = [1, 2, 3]
+    let cols = [10, 20]
+    
+    for r in rows {
+        for c in cols {
+            print(r * c)
+        }
+    }
+}
+
+// ========================================
+// Main
+// ========================================
+
+fn main() {
+    demo_basic()
+    print("")
+    
+    demo_sum()
+    print("")
+    
+    demo_find()
+    print("")
+    
+    demo_break()
+    print("")
+    
+    demo_continue()
+    print("")
+    
+    demo_filter()
+    print("")
+    
+    demo_nested()
+}

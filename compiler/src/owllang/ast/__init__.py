@@ -20,6 +20,7 @@ from owllang.ast.nodes import (
     Call,
     FieldAccess,
     TryExpr,
+    ListLiteral,
     # Pattern Matching
     Pattern,
     SomePattern,
@@ -39,6 +40,7 @@ from owllang.ast.nodes import (
     WhileStmt,
     BreakStmt,
     ContinueStmt,
+    ForInStmt,
     IfStmt,
     # Declarations
     Parameter,
@@ -64,6 +66,7 @@ __all__ = [
     "Call",
     "FieldAccess",
     "TryExpr",
+    "ListLiteral",
     # Pattern Matching
     "Pattern",
     "SomePattern",
@@ -83,6 +86,7 @@ __all__ = [
     "WhileStmt",
     "BreakStmt",
     "ContinueStmt",
+    "ForInStmt",
     "IfStmt",
     # Declarations
     "Parameter",

@@ -37,6 +37,8 @@ class Lexer:
         'while': TokenType.WHILE,
         'break': TokenType.BREAK,
         'continue': TokenType.CONTINUE,
+        'for': TokenType.FOR,
+        'in': TokenType.IN,
         'from': TokenType.FROM,
         'python': TokenType.PYTHON,
         'import': TokenType.IMPORT,

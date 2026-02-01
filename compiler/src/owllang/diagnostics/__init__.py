@@ -34,6 +34,7 @@ from .error import (
     assignment_to_immutable_error,
     break_outside_loop_error,
     continue_outside_loop_error,
+    for_in_not_list_error,
 )
 from .warning import (
     Warning,
@@ -76,6 +77,9 @@ __all__ = [
     "match_not_exhaustive_error",
     "match_invalid_pattern_error",
     "assignment_to_immutable_error",
+    "break_outside_loop_error",
+    "continue_outside_loop_error",
+    "for_in_not_list_error",
     # Warning
     "Warning",
     # Warning factory functions

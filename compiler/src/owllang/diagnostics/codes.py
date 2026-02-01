@@ -71,6 +71,7 @@ class ErrorCode(Enum):
     INVALID_PATTERN = "E0504"
     BREAK_OUTSIDE_LOOP = "E0505"
     CONTINUE_OUTSIDE_LOOP = "E0506"
+    FOR_IN_NOT_LIST = "E0507"
 
 
 class WarningCode(Enum):

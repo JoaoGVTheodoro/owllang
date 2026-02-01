@@ -1,0 +1,202 @@
+// Example 11: Lists in OwlLang
+// OwlLang v0.2.2-alpha - List[T] type for storing multiple values
+
+// ========================================
+// 1. Creating Lists
+// ========================================
+
+fn demo_list_creation() {
+    // Empty list
+    let empty = []
+    print("Empty list length:")
+    print(len(empty))
+    
+    // List of integers
+    let numbers = [1, 2, 3, 4, 5]
+    print("Numbers length:")
+    print(len(numbers))
+    
+    // List of strings
+    let names = ["Alice", "Bob", "Charlie"]
+    print("Names length:")
+    print(len(names))
+    
+    // Trailing comma is allowed
+    let items = [
+        100,
+        200,
+        300,
+    ]
+    print("Items length:")
+    print(len(items))
+}
+
+// ========================================
+// 2. Accessing Elements
+// ========================================
+
+fn demo_access() {
+    let fruits = ["apple", "banana", "cherry"]
+    
+    // get(list, index) returns element at index
+    print("First fruit:")
+    print(get(fruits, 0))
+    
+    print("Second fruit:")
+    print(get(fruits, 1))
+    
+    print("Third fruit:")
+    print(get(fruits, 2))
+}
+
+// ========================================
+// 3. Building Lists with push
+// ========================================
+
+fn demo_push() {
+    // push returns a NEW list (immutable semantics)
+    let original = [1, 2]
+    let extended = push(original, 3)
+    
+    print("Original still has 2 elements:")
+    print(len(original))
+    
+    print("Extended has 3 elements:")
+    print(len(extended))
+    
+    // Chain multiple pushes
+    let built = push(push(push([], 10), 20), 30)
+    print("Built list length:")
+    print(len(built))
+}
+
+// ========================================
+// 4. Checking Empty Lists
+// ========================================
+
+fn demo_is_empty() {
+    if is_empty([]) {
+        print("Empty list is empty")
+    }
+    
+    if is_empty([1, 2, 3]) {
+        print("This won't print")
+    } else {
+        print("Non-empty list is not empty")
+    }
+}
+
+// ========================================
+// 5. Iterating with While Loops
+// ========================================
+
+fn sum_list(xs: List[Int]) -> Int {
+    let mut total = 0
+    let mut i = 0
+    while i < len(xs) {
+        total = total + get(xs, i)
+        i = i + 1
+    }
+    total
+}
+
+fn demo_iteration() {
+    let numbers = [10, 20, 30, 40, 50]
+    
+    // Print each element
+    print("Printing each number:")
+    let mut i = 0
+    while i < len(numbers) {
+        print(get(numbers, i))
+        i = i + 1
+    }
+    
+    // Calculate sum
+    let total = sum_list(numbers)
+    print("Sum of numbers:")
+    print(total)
+}
+
+// ========================================
+// 6. Finding Elements
+// ========================================
+
+fn find_index(xs: List[Int], target: Int) -> Int {
+    let mut i = 0
+    while i < len(xs) {
+        if get(xs, i) == target {
+            return i
+        }
+        i = i + 1
+    }
+    return -1  // not found
+}
+
+fn demo_find() {
+    let data = [5, 10, 15, 20, 25]
+    
+    let idx = find_index(data, 15)
+    print("Index of 15:")
+    print(idx)
+    
+    let idx2 = find_index(data, 100)
+    print("Index of 100 (not found):")
+    print(idx2)
+}
+
+// ========================================
+// 7. Building Lists in Loops
+// ========================================
+
+fn range(n: Int) -> List[Int] {
+    let mut result = []
+    let mut i = 0
+    while i < n {
+        result = push(result, i)
+        i = i + 1
+    }
+    result
+}
+
+fn demo_build_list() {
+    let nums = range(5)
+    print("Range 0 to 4:")
+    let mut i = 0
+    while i < len(nums) {
+        print(get(nums, i))
+        i = i + 1
+    }
+}
+
+// ========================================
+// Main
+// ========================================
+
+fn main() {
+    print("=== List Creation ===")
+    demo_list_creation()
+    
+    print("")
+    print("=== Accessing Elements ===")
+    demo_access()
+    
+    print("")
+    print("=== Building with Push ===")
+    demo_push()
+    
+    print("")
+    print("=== Checking Empty ===")
+    demo_is_empty()
+    
+    print("")
+    print("=== Iteration ===")
+    demo_iteration()
+    
+    print("")
+    print("=== Finding Elements ===")
+    demo_find()
+    
+    print("")
+    print("=== Building Lists ===")
+    demo_build_list()
+}
